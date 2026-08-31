@@ -1,0 +1,23 @@
+{
+  "//": "Same as mcp.json.example but VS Code prompts for the token once per session and stores it, so no secret sits in .env or in this file.",
+  "inputs": [
+    {
+      "id": "atlassian-token",
+      "type": "promptString",
+      "description": "Atlassian API token (id.atlassian.com > Security > API tokens)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\tools\\tt-atlassian-mcp\\atlassian_mcp_server.py"],
+      "env": {
+        "ATLASSIAN_BASE_URL": "https://fbdms.atlassian.net",
+        "ATLASSIAN_EMAIL": "your.name@example.com",
+        "ATLASSIAN_API_TOKEN": "${input:atlassian-token}"
+      }
+    }
+  }
+}

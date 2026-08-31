@@ -1,0 +1,32 @@
+{
+  "//": "VS Code: save as .vscode/mcp.json. Fix the paths. All three servers can run together - the tool names do not collide.",
+  "servers": {
+    "bitbucket": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\tools\\tt-bitbucket-mcp\\bitbucket_mcp_server.py"],
+      "env": {
+        "BITBUCKET_ENV_FILE": "C:\\tools\\tt-bitbucket-mcp\\.env",
+        "BITBUCKET_REPO_ROOT": "C:\\src\\fxaut"
+      }
+    },
+    "corpus": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\tools\\corpus-mcp\\corpus_mcp_server.py"],
+      "env": {
+        "CORPUS_ENV_FILE": "C:\\tools\\corpus-mcp\\.env",
+        "CORPUS_REPO_ROOT": "C:\\src\\fxaut"
+      }
+    },
+    "atlassian": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\tools\\tt-atlassian-mcp\\atlassian_mcp_server.py"],
+      "env": {
+        "ATLASSIAN_ENV_FILE": "C:\\tools\\tt-atlassian-mcp\\.env",
+        "ATLASSIAN_READ_ONLY": "true"
+      }
+    }
+  }
+}

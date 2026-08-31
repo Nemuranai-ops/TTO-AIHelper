@@ -1,0 +1,13 @@
+{
+  "//": "VS Code: save as .vscode/mcp.json in your workspace, or run 'MCP: Open User Configuration' for a global one. Change the path below to wherever you put the folder.",
+  "servers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\tools\\tt-atlassian-mcp\\atlassian_mcp_server.py"],
+      "env": {
+        "ATLASSIAN_ENV_FILE": "C:\\tools\\tt-atlassian-mcp\\.env"
+      }
+    }
+  }
+}
