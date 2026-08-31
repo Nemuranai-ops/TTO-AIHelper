@@ -15,6 +15,81 @@ cases and many sessions; a rule the storage layer enforces does not.
 
 ---
 
+## Architecture
+
+`tto-testgen` is both an MCP **server** (to Copilot) and an MCP **client** (to two
+other servers, for bulk reads — fetching hundreds of Jira issues through the
+model's own context would be slow and expensive). Every arrow below is a real,
+separate stdio connection; nothing here shares a process or a socket.
+
+```mermaid
+flowchart TD
+    subgraph VSCode["VS Code"]
+        Agent["GitHub Copilot Agent"]
+        Playwright["playwright-mcp (npx)"]
+    end
+
+    subgraph Repo["This repository"]
+        Toolchain["tto-testgen<br/>MCP server AND MCP client"]
+        DB["SQLite<br/>.taas/taas.db"]
+    end
+
+    subgraph Vendored["Vendored, read-only (src/)"]
+        Atlassian["tto-atlassian-mcp"]
+        Bitbucket["tto-bitbucket-mcp"]
+    end
+
+    Jira["Jira / Confluence"]
+    Git["Local git clones on disk"]
+    AUT["Application under test"]
+
+    Agent -->|"tool calls, stdio"| Toolchain
+    Toolchain -->|"structured results"| Agent
+    Toolchain -->|"reads / writes"| DB
+
+    Toolchain -->|"bulk read, one session per call"| Atlassian
+    Atlassian -->|"issues, pages"| Toolchain
+    Atlassian -->|"HTTPS, its own .env"| Jira
+
+    Toolchain -->|"bulk read, one session per call"| Bitbucket
+    Bitbucket -->|"repos, commits, endpoints"| Toolchain
+    Bitbucket -->|"reads only, never the network"| Git
+
+    Agent -->|"live exploration"| Playwright
+    Playwright -->|"screens, locators"| Agent
+    Playwright -->|"drives a browser"| AUT
+```
+
+Two things worth reading off that diagram directly:
+
+- **Nothing here holds a credential except `tto-atlassian-mcp`'s own `.env`**, which
+  TAAS never touches. `tto-bitbucket-mcp` never contacts a network at all — it only
+  reads git clones already on disk.
+- **Every arrow into `tto-testgen` from Atlassian or Bitbucket is a fresh session,
+  opened for one call and closed immediately** — not a connection held open for the
+  life of the process. Only Playwright, which the agent drives directly for live
+  exploration, sits outside `tto-testgen` entirely.
+
+A single request walks this graph more than once. Asking Copilot to generate test
+cases for a feature typically ingests through both vendored servers first (their
+sessions open and close), builds the requirement and coverage model against SQLite,
+and only then generates — each step a separate, auditable tool call, never one
+opaque action.
+
+Underneath the MCP layer, every request also moves through the same seven-stage
+pipeline, one human gate at a time:
+
+```mermaid
+flowchart LR
+    A["Ingest"] --> B["Analyse"] --> C["Requirements"] --> D["Coverage"] --> E["Cases"] --> F["Automation"] --> G["Handover"]
+```
+
+A stage cannot begin until the previous one is complete, approved, and unchanged
+since approval — `unit_begin` is what enforces that, not convention. See
+[**Sample prompts**](#sample-prompts) below for what to actually type at each stage,
+or `presentation.html` in the repository root for a fully worked example tracing one
+request through every one of these connections.
+
 ## Requirements
 
 - Python 3.11 or later
