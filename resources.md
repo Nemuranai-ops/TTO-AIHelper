@@ -39,7 +39,7 @@ same way it skips headings) and add your real links in their place.
 # that lives somewhere else, as a path ending openapi.yaml / openapi.json /
 # swagger.yaml / swagger.json and NOT under a bitbucket.org URL (a bitbucket.org
 # link is always read as the repository itself, even if the path ends in
-# openapi.yaml): file
+# openapi.yaml):
 # https://docs.your-org.com/checkout/openapi.yaml
 
 ## Local folder
