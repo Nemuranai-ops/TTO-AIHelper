@@ -152,52 +152,95 @@ names a feature (`checkout`, standing in for whatever you're actually working on
 - "Ingest the resources for checkout."
 - "What's declared in resources.md that hasn't been ingested yet?"
 - "Show me every artefact we've pulled in for checkout so far."
+- "List all the declared resources with their inferred type and ingestion status."
+- "Which declared resources failed to ingest, and why?"
+- "I added new links to resources.md — re-run ingestion and tell me what's new."
+- "Show me just the Jira-issue artefacts we've ingested for checkout."
+- "I dropped Figma screenshots into designs/checkout — ingest them."
+- "Pull in the Confluence page that documents checkout's business rules."
+- "I added a new Bitbucket repository to resources.md — ingest it and confirm it's reachable."
 - "Has anything in Bitbucket or Jira changed since our last baseline? Run delta detection."
+- "What's the delta baseline the next ingestion run would compare against?"
 
 **Analyse** — build the application model from what's ingested
 - "Build the application model for checkout from what we've ingested."
 - "Derive the API model for the checkout-service repository."
+- "Derive the API model for checkout-service and payments-service together."
 - "Store the UI model for the screens we just explored with Playwright."
 - "What features exist in the corpus so far?"
+- "Show me everything we know about the checkout feature."
+- "What business rules did you extract for checkout?"
+- "List the user journeys identified for checkout."
+- "Which ingested artefacts are still unassigned to any feature?"
+- "What endpoints did the code scan find, and did we find an OpenAPI spec to check them against?"
+- "What's the current state of the analyse unit for checkout — open, in progress, or blocked?"
 
 **Requirements** — derive atomic, traceable requirements
 - "Derive the testable requirements for checkout."
 - "Show me the requirements captured for checkout, with their risk bands."
-- "Where does this requirement trace back to — direct link or derived from a commit?"
+- "Where does this requirement trace back to — a direct Jira link, or derived from commit history?"
+- "List every high-risk requirement for checkout."
+- "Which requirements had no direct Jira link and had to be derived from commits?"
+- "How many requirements do we have for checkout, broken down by category?"
+- "Give me requirement TR-CHECKOUT-00003 in full, with its trace links."
+- "Which requirements are still validation-only versus business-rule versus edge-case?"
 - `/analyse-story` — extract features, rules and edge cases from one named Jira story
 
 **Coverage** — plan and approve what gets generated, before anything is generated
 - "Build the coverage baseline for checkout."
 - "Give me the coverage forecast before we generate anything — planned counts by test type."
 - "Approve the coverage baseline for checkout." (Test Lead only — everyone else is told so)
-- "What gaps are open — requirements with no coverage, no derivable Jira key, manual-only cases?"
+- "What gaps are open — requirements with no coverage, no derivable Jira key, manual-only cases, reduced-depth features?"
 - "Reduce depth for checkout — it doesn't warrant full ISTQB coverage."
+- "Show me the full traceability matrix for checkout."
+- "Which coverage items are marked not-required, and what's the stated reason?"
+- "How many planned cases per test type, before anything is generated?"
+- "Who approved the last coverage baseline for checkout, and when?"
+- "Show me every requirement with zero planned coverage."
 
 **Cases** — generate the corpus against the approved baseline
 - "Generate the test case batch for checkout."
 - "Check for near-duplicates before I approve this batch."
 - "How many cases do we have for checkout, by test type?"
+- "Give me case TC-CHECKOUT-00012 in full — steps, expected results, test data, trace links."
+- "Emit the human-readable views for the checkout batch."
+- "Give me the volume report — total cases, automatable split, broken down by feature."
+- "Query every manual-only case for checkout and tell me why each one couldn't be automated."
+- "Which cases were rejected in the last batch, and what was the reason for each?"
+- "Show me every case that traces back to requirement TR-CHECKOUT-00003."
 - `/generate-cases` — generate the case batch for one named feature
 - `/review-batch` — summarise a generated batch for operator review, short enough to read in a minute
 
 **Automation** — emit Playwright TypeScript for the automatable cases
 - "Emit Playwright specs for the automatable checkout cases."
-- "Give me the automation report — automated versus manual, and why."
+- "Give me the automation report — automated versus manual, and why each manual one is manual."
+- "Show me the generated spec for TC-CHECKOUT-00012."
+- "Re-emit automation for checkout — the page structure changed since the last run."
+- "Which automatable cases still don't have a spec generated?"
 - `/generate-page-object` — produce one page object for a named screen, locators centralised, no fixed waits
 
 **Handover** — assemble and verify the delivery package
 - "Assemble the handover package for checkout."
 - "Verify the handover project — does it actually build and pass structurally?"
 - "Generate the coverage, gap, automation and delta reports."
+- "Give me the full traceability matrix before we hand this off."
+- "What's the delta baseline this handover package was built against?"
+- "Give me the volume report for the whole handover package, not just checkout."
+- "Run the gap report one more time before we hand off — what's still open?"
 - `/coverage-report` — produce the coverage and gap report for one named feature, with every number's derivation shown
 
 **Staying current, at any stage**
 - "Has anything changed since the last completed run? Run delta detection and tell me what moved."
 - "What's the baseline the next delta run would compare against?"
+- "Which test cases now need a re-look because their source requirement or code changed?"
+- "Were any cases retired automatically because the requirement behind them disappeared?"
+- "Generate just the delta report — what's changed and what it affected."
 
 **Diagnostics — not scoped to any one mode**
 - "What's the status of the current run?"
 - "Run a health check."
+- "What state is the coverage unit in for checkout — open, approved, or blocked, and what opens it?"
+- "Is any unit currently leased and idle long enough to look stuck?"
 - `/resume-run` — report what's interrupted, what's complete and approved, and corpus totals; recommends nothing, since interrupted work is transactional and lost nothing
 
 ## Verify
