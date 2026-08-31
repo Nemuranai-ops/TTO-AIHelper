@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from tto_testgen.domain.apimodel import AuthRequirement, CodeEndpoint, SpecEndpoint
+from tto_testgen.domain.apimodel import CodeEndpoint
 from tto_testgen.mcp.server import ToolRegistry, ToolSpec
 from tto_testgen.platform.logging import Logger
 from tto_testgen.platform.result import ErrorCode, Ok, Result, err, ok
@@ -58,7 +58,7 @@ def register_u2_tools(
     or reaching into composition's wiring itself.
 
         ingestion_runner: Callable[[str | None], Result[IngestionReport]]
-        api_model_deriver: Callable[[str], Result[tuple[list[CodeEndpoint], dict | None]]]
+        api_model_deriver: Callable[[str], Result[tuple[list[CodeEndpoint], list[str]]]]
     """
     def tool(name: str, description: str, schema: type[BaseModel]):
         def decorator(fn):
@@ -108,26 +108,31 @@ def register_u2_tools(
 
     @tool(
         "api_model_derive",
-        "Derive the API model from code and any OpenAPI spec. Deterministic: the "
-        "code decides which endpoints exist, the spec decides their shapes.",
+        "Derive the API model from code. Endpoints come from a deterministic scan "
+        "of the repository; an OpenAPI/Swagger spec's file path is reported when "
+        "bitbucket_endpoints finds one, but tt-bitbucket-mcp has no tool that "
+        "returns a file's raw content, so a spec's shapes are not auto-derived - "
+        "open the reported path directly to compare it against the code.",
         ApiModelDerive,
     )
     def api_model_derive(args: ApiModelDerive, log: Logger) -> Result[Any]:
         code: list[CodeEndpoint] = []
-        spec: list[SpecEndpoint] = []
+        spec_files: list[str] = []
 
         for slug in args.repo_slugs:
             outcome = api_model_deriver(slug)
             if not isinstance(outcome, Ok):
                 return outcome
-            endpoints, openapi = outcome.value
+            endpoints, files = outcome.value
             code.extend(endpoints)
-            if openapi:
-                spec.extend(_spec_endpoints(openapi))
+            spec_files.extend(f"{slug}:{path}" for path in files)
 
-        return analysis_service.derive_api_model(
-            code, spec, feature_slug=args.feature_slug
+        result = analysis_service.derive_api_model(
+            code, [], feature_slug=args.feature_slug
         )
+        if isinstance(result, Ok) and spec_files:
+            result.value["spec_files_found"] = spec_files
+        return result
 
     @tool(
         "ui_model_upsert",
@@ -140,60 +145,3 @@ def register_u2_tools(
         return ok(result.value.to_dict()) if isinstance(result, Ok) else result
 
 
-def _spec_endpoints(document: dict[str, Any]) -> list[SpecEndpoint]:
-    """Read an OpenAPI document by plain traversal.
-
-    No spec library: a document that fails formal validation is still evidence of
-    intended shapes, and BR-U2-5 already treats the spec as advisory about shapes and
-    never authoritative about existence. A validator would let us discard exactly the
-    spec whose disagreement with the code is worth recording.
-
-    Cross-document `$ref` is left unresolved rather than fetched - resolving it would
-    mean an HTTP request to a URL chosen by the spec's author.
-    """
-    endpoints: list[SpecEndpoint] = []
-    global_security = bool(document.get("security"))
-
-    for route, operations in (document.get("paths") or {}).items():
-        if not isinstance(operations, dict):
-            continue
-        for method, operation in operations.items():
-            if method.upper() not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}:
-                continue
-            if not isinstance(operation, dict):
-                continue
-
-            responses = operation.get("responses") or {}
-            codes = tuple(
-                sorted(int(c) for c in responses if str(c).isdigit())
-            )
-            has_security = "security" in operation
-            secured = bool(operation.get("security")) if has_security else global_security
-
-            endpoints.append(SpecEndpoint(
-                method=method.upper(),
-                route=route,
-                request_shape=_request_shape(operation),
-                response_shapes={str(k): v for k, v in responses.items()},
-                status_codes=codes,
-                auth_requirement=(
-                    AuthRequirement.REQUIRED if secured
-                    else AuthRequirement.NONE if has_security or "security" in document
-                    else AuthRequirement.UNKNOWN
-                ),
-            ))
-    return endpoints
-
-
-def _request_shape(operation: dict[str, Any]) -> dict[str, Any] | None:
-    body = operation.get("requestBody") or {}
-    content = body.get("content") or {}
-    for media_type in ("application/json", *content):
-        if media_type in content:
-            schema = content[media_type].get("schema")
-            if schema is not None:
-                return schema
-    parameters = operation.get("parameters") or []
-    if parameters:
-        return {p.get("name"): p.get("schema", {}) for p in parameters if p.get("name")}
-    return None

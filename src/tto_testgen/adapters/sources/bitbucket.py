@@ -13,11 +13,10 @@ from datetime import datetime, timezone
 from typing import Any
 
 from tto_testgen.adapters.mcp_client import McpClientSession
-from tto_testgen.adapters.paging import DEFAULT_CEILING, DEFAULT_PAGE_SIZE, PagedResult, fetch_paged
 from tto_testgen.domain.apimodel import AuthRequirement, CodeEndpoint
 from tto_testgen.domain.traceability import CommitRecord
-from tto_testgen.platform.result import Err, Result, err, ok
-from tto_testgen.ports.sources import RepoInfo, SourceRecord
+from tto_testgen.platform.result import Err, Result, ok
+from tto_testgen.ports.sources import RepoInfo
 
 SERVER = "tto-bitbucket"
 
@@ -30,8 +29,6 @@ class BitbucketSourceAdapter:
     """Satisfies P2 `BitbucketSource`."""
 
     session: McpClientSession
-    page_size: int = DEFAULT_PAGE_SIZE
-    ceiling: int = DEFAULT_CEILING
 
     def repos(self) -> Result[list[RepoInfo]]:
         """tt-bitbucket-mcp's own response shape (bitbucket_mcp_server.py, repo_summary):
@@ -54,8 +51,24 @@ class BitbucketSourceAdapter:
             for r in result.value.get("repos", [])
         ])
 
-    def endpoints(self, repo_slug: str) -> Result[tuple[list[CodeEndpoint], dict | None]]:
-        """Returns (endpoints from code, any OpenAPI spec found)."""
+    def endpoints(self, repo_slug: str) -> Result[tuple[list[CodeEndpoint], list[str]]]:
+        """Returns (endpoints from code, paths to any OpenAPI/Swagger spec files found).
+
+        tt-bitbucket-mcp's own response shape (bitbucket_mcp_server.py,
+        bitbucket_endpoints): the spec paths are "api_spec_files" - there is no key
+        named "openapi" at all, so this always returned None before. A path is all
+        this server can offer: it has no tool that returns a file's raw content -
+        bitbucket_file's structured payload carries no content field, and its text
+        output is a line-numbered human-readable snippet, not parseable source. A
+        spec's location can be surfaced; fetching and parsing its shapes cannot,
+        without a raw-content capability this server does not currently expose.
+
+        Each endpoint entry also carries no "status_codes" or "context" field in the
+        real payload - status_codes stays () and auth_requirement stays UNKNOWN by
+        their own correct defaults, not a bug: UNKNOWN is what BR-U2 requires when
+        there is no evidence either way, and both would start working the moment a
+        real payload ever carries those fields.
+        """
         result = self.session.call(SERVER, "bitbucket_endpoints", {"repo": repo_slug})
         if isinstance(result, Err):
             return result
@@ -70,35 +83,7 @@ class BitbucketSourceAdapter:
             )
             for e in payload.get("endpoints", [])
         ]
-        return ok((endpoints, payload.get("openapi")))
-
-    def file(self, repo_slug: str, path: str, ref: str) -> Result[SourceRecord]:
-        result = self.session.call(
-            SERVER, "bitbucket_file", {"repo": repo_slug, "path": path, "ref": ref}
-        )
-        if isinstance(result, Err):
-            return result
-        return ok(SourceRecord(
-            source_identifier=f"{repo_slug}:{path}@{ref}", kind="source-file",
-            content=result.value.get("content", ""),
-            metadata={"repo": repo_slug, "path": path, "ref": ref},
-        ))
-
-    def grep(self, repo_slug: str, pattern: str, ref: str) -> Result[PagedResult]:
-        failure: list[Err] = []
-
-        def page(cursor):
-            args: dict[str, Any] = {"repo": repo_slug, "pattern": pattern, "ref": ref}
-            if cursor:
-                args["cursor"] = cursor
-            outcome = self.session.call(SERVER, "bitbucket_grep", args)
-            if isinstance(outcome, Err):
-                failure.append(outcome)
-                return [], None
-            return outcome.value.get("matches", []), outcome.value.get("next_cursor")
-
-        paged = fetch_paged(page, page_size=self.page_size, ceiling=self.ceiling)
-        return failure[0] if failure else ok(paged)
+        return ok((endpoints, list(payload.get("api_spec_files", []))))
 
     def log(
         self, repo_slug: str, *, path: str | None = None, since: datetime | None = None

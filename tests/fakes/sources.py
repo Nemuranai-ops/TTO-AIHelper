@@ -55,12 +55,6 @@ class FakeBitbucketSource:
             raise ConnectionError(f"simulated Bitbucket outage for {repo_slug}")
         return self.endpoint_records.get(repo_slug, [])
 
-    def file(self, repo_slug: str, path: str, ref: str) -> SourceRecord:
-        raise KeyError(path)
-
-    def grep(self, repo_slug: str, pattern: str, ref: str) -> list[SourceRecord]:
-        return []
-
     def log(self, repo_slug: str, *, path=None, since=None) -> list[SourceRecord]:
         return list(self.commit_records)
 

@@ -216,15 +216,23 @@ class TestBitbucketAdapter:
         assert repos[0].project_key == "PAY"
         assert repos[0].browse_url == "https://bitbucket.org/pay/orders"
 
-    def test_endpoints_and_spec_are_returned_together(self):
+    def test_endpoints_and_spec_file_paths_are_returned_together(self):
+        """bitbucket_endpoints' real field is "api_spec_files", a list of paths -
+        there is no "openapi" key carrying parsed content at all (the server has no
+        tool that returns raw file content, only a line-numbered human snippet)."""
         session = FakeSession({"bitbucket_endpoints": {
             "endpoints": [{"method": "get", "route": "/orders", "file": "api.py",
                            "line": 10, "symbol": "list_orders"}],
-            "openapi": {"paths": {}},
+            "api_spec_files": ["openapi.yaml"],
         }})
-        endpoints, spec = BitbucketSourceAdapter(session).endpoints("orders").value
+        endpoints, spec_files = BitbucketSourceAdapter(session).endpoints("orders").value
         assert endpoints[0].route == "/orders"
-        assert spec is not None
+        assert spec_files == ["openapi.yaml"]
+
+    def test_no_spec_files_found_is_an_empty_list_not_none(self):
+        session = FakeSession({"bitbucket_endpoints": {"endpoints": []}})
+        _, spec_files = BitbucketSourceAdapter(session).endpoints("orders").value
+        assert spec_files == []
 
     @pytest.mark.parametrize(
         "context,expected",
@@ -388,7 +396,7 @@ class TestReadOnlyPosture:
             "jira_get_issue", "jira_search_issues", "jira_get_transitions",
             "confluence_get_page", "confluence_search",
             "bitbucket_repos", "bitbucket_log", "bitbucket_tags", "bitbucket_changes",
-            "bitbucket_diff", "bitbucket_file", "bitbucket_grep", "bitbucket_endpoints",
+            "bitbucket_endpoints",
         }
         tree = ast.parse(pathlib.Path(module.__file__).read_text(encoding="utf-8"))
         called: set[str] = set()
