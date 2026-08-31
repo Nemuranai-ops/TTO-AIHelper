@@ -17,10 +17,20 @@ cases and many sessions; a rule the storage layer enforces does not.
 
 ## Architecture
 
+> A fuller, presentation-ready version of this section — every diagram below at
+> a larger scale, plus the source register, the trust boundary and the layering
+> contracts — lives in [`architecture.html`](architecture.html) in the repository
+> root. Open it in a browser; it prints and pastes into Confluence cleanly.
+
 `tto-testgen` is both an MCP **server** (to Copilot) and an MCP **client** (to two
 other servers, for bulk reads — fetching hundreds of Jira issues through the
 model's own context would be slow and expensive). Every arrow below is a real,
 separate stdio connection; nothing here shares a process or a socket.
+
+Facts enter this system through four different doors, and the diagram is drawn to
+make that visible: over the network with a credential, off local disk through a
+vendored server, off local disk in-process, or from a live browser the agent
+drives itself.
 
 ```mermaid
 flowchart TD
@@ -29,20 +39,25 @@ flowchart TD
         Playwright["playwright-mcp (npx)"]
     end
 
+    Manifest["resources.md<br/>every source declared as a plain link"]
+
     subgraph Repo["This repository"]
         Toolchain["tto-testgen<br/>MCP server AND MCP client"]
         DB["SQLite<br/>.taas/taas.db"]
+        Designs["designs/&lt;feature&gt;/<br/>Figma PNG exports<br/>+ screens.manifest.yaml"]
     end
 
     subgraph Vendored["Vendored, read-only (src/)"]
-        Atlassian["tto-atlassian-mcp"]
-        Bitbucket["tto-bitbucket-mcp"]
+        Atlassian["tt-atlassian-mcp"]
+        Bitbucket["tt-bitbucket-mcp"]
     end
 
     Jira["Jira / Confluence"]
     Git["Local git clones on disk"]
+    Spec["openapi.yaml / swagger.json<br/>found inside the clone"]
     AUT["Application under test"]
 
+    Manifest -->|"declares every resource; 8 rules infer its type"| Toolchain
     Agent -->|"tool calls, stdio"| Toolchain
     Toolchain -->|"structured results"| Agent
     Toolchain -->|"reads / writes"| DB
@@ -54,21 +69,39 @@ flowchart TD
     Toolchain -->|"bulk read, one session per call"| Bitbucket
     Bitbucket -->|"repos, commits, endpoints"| Toolchain
     Bitbucket -->|"reads only, never the network"| Git
+    Git -.->|"git ls-files match on 5 filenames"| Spec
+    Spec -.->|"path only - no raw-content tool exists"| Bitbucket
+
+    Toolchain -->|"in-process adapter, no MCP hop"| Designs
+    Designs -->|"filename + manifest, image hash only"| Toolchain
 
     Agent -->|"live exploration"| Playwright
-    Playwright -->|"screens, locators"| Agent
+    Playwright -->|"screens, verified locators"| Agent
     Playwright -->|"drives a browser"| AUT
 ```
 
-Two things worth reading off that diagram directly:
+Four things worth reading off that diagram directly:
 
-- **Nothing here holds a credential except `tto-atlassian-mcp`'s own `.env`**, which
-  TAAS never touches. `tto-bitbucket-mcp` never contacts a network at all — it only
+- **Nothing here holds a credential except `tt-atlassian-mcp`'s own `.env`**, which
+  TAAS never touches. `tt-bitbucket-mcp` never contacts a network at all — it only
   reads git clones already on disk.
 - **Every arrow into `tto-testgen` from Atlassian or Bitbucket is a fresh session,
   opened for one call and closed immediately** — not a connection held open for the
   life of the process. Only Playwright, which the agent drives directly for live
   exploration, sits outside `tto-testgen` entirely.
+- **API contracts are discovered, not fetched.** `bitbucket_endpoints` scans the
+  checked-out tree and reports both the routes it found in code and the path of any
+  `swagger.json` / `openapi.json` / `swagger.yaml` / `openapi.yaml` / `openapi.yml`
+  in it. Only the *path* comes back: `tt-bitbucket-mcp` exposes no tool that returns
+  a file's raw content, so a spec's shapes are never auto-parsed. `api_model_derive`
+  surfaces the paths as `spec_files_found` for you to open and compare against the
+  code yourself.
+- **Design information arrives as an exported folder, not a Figma API call.** A
+  directory path in `resources.md` is the one classification rule that touches the
+  filesystem, and `tto-testgen` reads it in-process — no MCP server sits in between.
+  Each `feature__screen__state.png` is parsed from its filename, corrected
+  field-by-field by an optional `screens.manifest.yaml`, and reduced to a content
+  hash. The image bytes never leave the folder.
 
 A single request walks this graph more than once. Asking Copilot to generate test
 cases for a feature typically ingests through both vendored servers first (their

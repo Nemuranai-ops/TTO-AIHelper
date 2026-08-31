@@ -1,0 +1,998 @@
+<title>TAAS Architecture Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ── Tokens ──────────────────────────────────────────────────────────────
+   Continuous with presentation.html's palette (same paper/ink family, same
+   type trio) but shifted toward a schematic sheet. Four hues carry meaning
+   and nothing else: wire = a structural connection, boundary = leaves this
+   machine, local = disk only, model = the probabilistic half.            */
+:root {
+  --paper:      #F2F3ED;
+  --paper-2:    #E8EAE2;
+  --paper-3:    #DEE1D7;
+  --ink:        #14202C;
+  --slate:      #5A6570;
+  --rule:       #C6CAC1;
+  --rule-soft:  #DADDD3;
+
+  --wire:       #2E5C7A;
+  --boundary:   #8C2F1E;
+  --local:      #1F6B4A;
+  --model:      #6B549B;
+
+  --wire-wash:      #2E5C7A12;
+  --boundary-wash:  #8C2F1E12;
+  --local-wash:     #1F6B4A12;
+  --model-wash:     #6B549B12;
+
+  --f-display: "Zilla Slab", "Bitstream Vera Serif", Georgia, serif;
+  --f-body:    "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+  --f-mono:    "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  --measure: 68ch;
+  --pad-x: clamp(1.25rem, 5vw, 4.5rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0E141A;
+    --paper-2:    #171F27;
+    --paper-3:    #1F2932;
+    --ink:        #E7E9E2;
+    --slate:      #8C97A2;
+    --rule:       #2A343E;
+    --rule-soft:  #202A33;
+
+    --wire:       #6FA8CC;
+    --boundary:   #E28468;
+    --local:      #57BC91;
+    --model:      #AC94DA;
+
+    --wire-wash:      #6FA8CC1A;
+    --boundary-wash:  #E284681A;
+    --local-wash:     #57BC911A;
+    --model-wash:     #AC94DA1A;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0E141A;
+  --paper-2:    #171F27;
+  --paper-3:    #1F2932;
+  --ink:        #E7E9E2;
+  --slate:      #8C97A2;
+  --rule:       #2A343E;
+  --rule-soft:  #202A33;
+
+  --wire:       #6FA8CC;
+  --boundary:   #E28468;
+  --local:      #57BC91;
+  --model:      #AC94DA;
+
+  --wire-wash:      #6FA8CC1A;
+  --boundary-wash:  #E284681A;
+  --local-wash:     #57BC911A;
+  --model-wash:     #AC94DA1A;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet { max-width: 1180px; margin: 0 auto; padding: 0 var(--pad-x) 6rem; }
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+.masthead { padding: clamp(2.5rem, 6vw, 4.5rem) 0 0; }
+.stamp {
+  font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--wire); margin: 0 0 1.1rem;
+}
+h1 {
+  font-family: var(--f-display); font-weight: 600;
+  font-size: clamp(2.3rem, 6vw, 3.9rem); line-height: 1.02;
+  letter-spacing: -0.018em; margin: 0 0 1rem; text-wrap: balance;
+}
+h1 .sub { display: block; color: var(--slate); font-size: 0.46em; font-weight: 500; letter-spacing: 0; margin-top: 0.7rem; }
+.standfirst { max-width: var(--measure); font-size: 1.12rem; color: var(--ink); margin: 0 0 2.2rem; }
+
+.spec-block {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  margin: 0 0 3.5rem;
+}
+.spec-block div { background: var(--paper); padding: 0.85rem 1rem 0.95rem; }
+.spec-block dt, .spec-k {
+  font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--slate); margin: 0 0 0.3rem;
+}
+.spec-v { font-size: 0.94rem; line-height: 1.4; margin: 0; }
+.spec-v code { font-size: 0.88em; }
+
+/* ── Sections ─────────────────────────────────────────────────────────── */
+section { padding-top: 3rem; }
+h2 {
+  font-family: var(--f-display); font-weight: 600; font-size: clamp(1.5rem, 3vw, 2.05rem);
+  line-height: 1.15; letter-spacing: -0.012em; margin: 0 0 0.5rem; text-wrap: balance;
+}
+h3 {
+  font-family: var(--f-body); font-weight: 600; font-size: 1.02rem;
+  letter-spacing: 0.005em; margin: 2rem 0 0.4rem;
+}
+.eyebrow {
+  font-family: var(--f-mono); font-size: 0.68rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--slate); margin: 0 0 0.55rem;
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+p { max-width: var(--measure); margin: 0 0 1rem; }
+.lede { font-size: 1.06rem; }
+strong { font-weight: 600; }
+code {
+  font-family: var(--f-mono); font-size: 0.86em;
+  background: var(--paper-2); padding: 0.08em 0.34em; border-radius: 2px;
+}
+
+ul.notes { list-style: none; padding: 0; margin: 0; max-width: var(--measure); }
+ul.notes li {
+  padding: 0.62rem 0 0.62rem 1.5rem; border-bottom: 1px solid var(--rule-soft);
+  position: relative;
+}
+ul.notes li::before {
+  content: ""; position: absolute; left: 0; top: 1.28em;
+  width: 8px; height: 1px; background: var(--wire);
+}
+ul.notes li:last-child { border-bottom: 0; }
+
+/* ── Figures ──────────────────────────────────────────────────────────── */
+figure {
+  margin: 1.8rem 0 0; padding: 1.4rem 1.4rem 1.1rem;
+  border: 1px solid var(--rule); background: var(--paper);
+  break-inside: avoid;
+}
+figure .plate-no {
+  font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--wire); margin: 0 0 0.9rem;
+}
+.plate-scroll { overflow-x: auto; }
+svg.plate { display: block; width: 100%; max-width: 100%; height: auto; min-width: 640px; }
+svg.plate.narrow { max-width: 760px; margin: 0 auto; min-width: 520px; }
+figcaption {
+  font-size: 0.9rem; color: var(--slate); line-height: 1.5;
+  margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid var(--rule-soft);
+  max-width: 76ch;
+}
+
+/* SVG primitives */
+.plate text { font-family: var(--f-body); fill: var(--ink); }
+.plate .t-title { font-size: 13px; font-weight: 600; }
+.plate .t-sub   { font-size: 10.5px; font-family: var(--f-mono); fill: var(--slate); }
+.plate .t-chip  { font-size: 10.5px; font-family: var(--f-mono); fill: var(--slate); }
+.plate .t-grp   { font-size: 10px; font-family: var(--f-mono); letter-spacing: 0.14em; fill: var(--slate); }
+.plate .t-local { fill: var(--local); }
+.plate .t-bnd   { fill: var(--boundary); }
+.plate .box     { fill: var(--paper-2); stroke: var(--rule); stroke-width: 1.25; }
+.plate .box-wire  { stroke: var(--wire);     fill: var(--wire-wash); }
+.plate .box-local { stroke: var(--local);    fill: var(--local-wash); }
+.plate .box-bnd   { stroke: var(--boundary); fill: var(--boundary-wash); }
+.plate .box-model { stroke: var(--model);    fill: var(--model-wash); }
+.plate .grp     { fill: none; stroke: var(--rule); stroke-dasharray: 3 4; }
+.plate .chip    { fill: var(--paper); }
+.plate .ln      { stroke: var(--wire); stroke-width: 1.5; fill: none; }
+.plate .ln-dash { stroke-dasharray: 6 4; }
+.plate .ln-bnd  { stroke: var(--boundary); }
+.plate .ln-local{ stroke: var(--local); }
+.plate .ln-model{ stroke: var(--model); }
+.plate .ln-ink  { stroke: var(--ink); opacity: 0.55; }
+.plate .gate    { stroke: var(--ink); stroke-width: 2; opacity: 0.5; }
+.plate .gate-hi { stroke: var(--boundary); stroke-width: 2.5; opacity: 1; }
+.mk-wire  path { fill: var(--wire); }
+.mk-bnd   path { fill: var(--boundary); }
+.mk-local path { fill: var(--local); }
+.mk-model path { fill: var(--model); }
+
+/* ── Legend ───────────────────────────────────────────────────────────── */
+.legend {
+  list-style: none; padding: 0; margin: 1.1rem 0 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.45rem 1.6rem;
+  font-size: 0.86rem; color: var(--slate);
+}
+.legend li { display: flex; align-items: baseline; gap: 0.6rem; }
+.legend .sw { flex: none; width: 22px; height: 3px; border-radius: 2px; transform: translateY(-3px); }
+.legend .sw.wire { background: var(--wire); }
+.legend .sw.bnd  { background: var(--boundary); }
+.legend .sw.loc  { background: var(--local); }
+.legend .sw.mod  { background: var(--model); }
+.legend .sw.dash { background: repeating-linear-gradient(90deg, var(--wire) 0 6px, transparent 6px 10px); }
+.legend b { color: var(--ink); font-weight: 600; }
+
+/* ── Tables ───────────────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin: 1.4rem 0 0; border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.9rem; }
+caption {
+  caption-side: top; text-align: left; padding: 0.85rem 1rem;
+  font-family: var(--f-mono); font-size: 0.66rem; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--slate); border-bottom: 1px solid var(--rule);
+}
+th {
+  text-align: left; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--slate);
+  padding: 0.7rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: bottom;
+}
+td { padding: 0.72rem 1rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.45; }
+tbody tr:last-child td { border-bottom: 0; }
+td code { background: none; padding: 0; color: var(--ink); }
+.num { font-variant-numeric: tabular-nums; }
+.tag {
+  display: inline-block; font-family: var(--f-mono); font-size: 0.68rem;
+  letter-spacing: 0.06em; padding: 0.14em 0.5em; border-radius: 2px; white-space: nowrap;
+}
+.tag.net   { color: var(--boundary); background: var(--boundary-wash); border: 1px solid var(--boundary); }
+.tag.disk  { color: var(--local);    background: var(--local-wash);    border: 1px solid var(--local); }
+.tag.proc  { color: var(--wire);     background: var(--wire-wash);     border: 1px solid var(--wire); }
+.tag.none  { color: var(--slate);    background: var(--paper-2);       border: 1px solid var(--rule); }
+.tag.mdl   { color: var(--model);    background: var(--model-wash);    border: 1px solid var(--model); }
+
+/* ── Callout ──────────────────────────────────────────────────────────── */
+.callout {
+  border-left: 3px solid var(--boundary); background: var(--boundary-wash);
+  padding: 1rem 1.2rem; margin: 1.6rem 0 0; max-width: var(--measure);
+}
+.callout.good { border-left-color: var(--local); background: var(--local-wash); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .spec-k { color: var(--boundary); }
+.callout.good .spec-k { color: var(--local); }
+
+hr.div { border: 0; border-top: 1px solid var(--rule); margin: 3.5rem 0 0; }
+
+footer {
+  margin-top: 4rem; padding-top: 1.4rem; border-top: 1px solid var(--rule);
+  font-size: 0.86rem; color: var(--slate);
+}
+footer p { max-width: 80ch; }
+
+a { color: var(--wire); text-underline-offset: 2px; }
+a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--wire); outline-offset: 3px; }
+
+@media (max-width: 700px) {
+  body { font-size: 16px; }
+  .spec-block { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Print / Confluence + PDF export ──────────────────────────────────── */
+@page { margin: 16mm; }
+@media print {
+  /* Matches the dark blocks' specificity so a print from a dark-themed
+     viewer still resolves to the light palette. */
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --paper: #FFFFFF; --paper-2: #F4F5F0; --paper-3: #ECEEE7;
+    --ink: #101820; --slate: #4A545E; --rule: #B9BEB5; --rule-soft: #D6D9D0;
+    --wire: #23506B; --boundary: #7C2818; --local: #1A5C3F; --model: #5A4585;
+  }
+  body { background: #fff; font-size: 10.5pt; }
+  .sheet { max-width: none; padding: 0; }
+  section { break-inside: auto; }
+  h2 { break-after: avoid; }
+  figure { break-inside: avoid; page-break-inside: avoid; border-color: #B9BEB5; }
+  .table-wrap, table { break-inside: auto; }
+  tr, .legend li { break-inside: avoid; }
+  svg.plate { min-width: 0; }
+  .plate-scroll { overflow: visible; }
+  .no-print { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <p class="stamp">Architecture sheet &nbsp;·&nbsp; TTO Test Analyst Agent System</p>
+  <h1>Where every fact comes from
+    <span class="sub"><code>tto-testgen</code> — the deterministic toolchain behind TAAS</span>
+  </h1>
+  <p class="standfirst">TAAS is two halves. The agent layer — Copilot instructions, chat modes and
+  prompt files — reasons about meaning. This repository is the other half: the code that owns every
+  fact which must stay true across thousands of test cases. These plates show the seam between them,
+  and the four different doors that information comes in through.</p>
+
+  <div class="spec-block">
+    <div><p class="spec-k">Scope</p><p class="spec-v">Runtime topology, source ingestion, internal layering</p></div>
+    <div><p class="spec-k">Audience</p><p class="spec-v">Test leads, engineers, architecture review</p></div>
+    <div><p class="spec-k">Derived from</p><p class="spec-v">Repository source at <code>ae2f5ca</code></p></div>
+    <div><p class="spec-k">Deployment</p><p class="spec-v">Entirely local — no cloud service, no hosted component</p></div>
+    <div><p class="spec-k">State</p><p class="spec-v">One SQLite file, <code>.taas/taas.db</code></p></div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="topology">
+  <p class="eyebrow">Plate 1</p>
+  <h2>Process topology</h2>
+  <p class="lede"><code>tto-testgen</code> is both an MCP <strong>server</strong> (to Copilot) and an
+  MCP <strong>client</strong> (to two other servers, for bulk reads — fetching hundreds of Jira issues
+  through the model's own context would be slow and expensive). Every connection below is a real,
+  separate stdio channel; nothing here shares a process or a socket.</p>
+
+  <figure>
+    <p class="plate-no">Plate 1 — runtime topology and the four intake paths</p>
+    <div class="plate-scroll">
+    <svg class="plate" viewBox="0 0 1040 672" role="img"
+         aria-label="Runtime topology. The Copilot agent in VS Code calls tto-testgen over stdio. tto-testgen reads resources.md, reads and writes a local SQLite database, opens a one-call session to tt-atlassian-mcp which reaches Jira and Confluence over HTTPS with its own credential, opens a one-call session to tt-bitbucket-mcp which reads local git clones from disk including any OpenAPI or Swagger file inside them, and reads the Figma export folder in-process with no MCP server in between. Separately, the agent drives playwright-mcp directly against the running application, bypassing tto-testgen entirely.">
+      <defs>
+        <marker id="p1w" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto-start-reverse" class="mk-wire"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p1b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto-start-reverse" class="mk-bnd"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p1l" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto-start-reverse" class="mk-local"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p1m" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto-start-reverse" class="mk-model"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+      </defs>
+
+      <!-- VS Code container -->
+      <rect class="grp" x="200" y="18" width="820" height="116" rx="8"/>
+      <text class="t-grp" x="214" y="38">VS CODE</text>
+
+      <rect class="box box-model" x="228" y="52" width="300" height="62" rx="5"/>
+      <text class="t-title" x="378" y="79" text-anchor="middle">GitHub Copilot Agent</text>
+      <text class="t-sub" x="378" y="97" text-anchor="middle">reasons about meaning</text>
+
+      <rect class="box box-model" x="760" y="52" width="236" height="62" rx="5"/>
+      <text class="t-title" x="878" y="79" text-anchor="middle">playwright-mcp</text>
+      <text class="t-sub" x="878" y="97" text-anchor="middle">npx, driven by the agent</text>
+
+      <!-- Row 2 -->
+      <rect class="box" x="24" y="196" width="176" height="64" rx="5"/>
+      <text class="t-title" x="112" y="222" text-anchor="middle">resources.md</text>
+      <text class="t-sub" x="112" y="240" text-anchor="middle">plain links, 8 rules</text>
+
+      <rect class="box box-wire" x="280" y="182" width="300" height="98" rx="5"/>
+      <text class="t-title" x="430" y="214" text-anchor="middle">tto-testgen</text>
+      <text class="t-sub" x="430" y="234" text-anchor="middle">MCP server AND MCP client</text>
+      <text class="t-sub" x="430" y="252" text-anchor="middle">ids · dedupe · coverage · run state</text>
+
+      <rect class="box" x="660" y="190" width="180" height="58" rx="5"/>
+      <text class="t-title" x="750" y="214" text-anchor="middle">SQLite</text>
+      <text class="t-sub" x="750" y="232" text-anchor="middle">.taas/taas.db</text>
+
+      <!-- Row 3: vendored servers -->
+      <rect class="grp" x="34" y="348" width="540" height="100" rx="8"/>
+      <text class="t-grp" x="24" y="398" text-anchor="middle" transform="rotate(-90 24 398)">VENDORED, READ-ONLY — src/</text>
+
+      <rect class="box" x="50" y="364" width="232" height="68" rx="5"/>
+      <text class="t-title" x="166" y="391" text-anchor="middle">tt-atlassian-mcp</text>
+      <text class="t-sub" x="166" y="410" text-anchor="middle">holds the only credential</text>
+
+      <rect class="box" x="310" y="364" width="248" height="68" rx="5"/>
+      <text class="t-title" x="434" y="391" text-anchor="middle">tt-bitbucket-mcp</text>
+      <text class="t-sub" x="434" y="410" text-anchor="middle">never opens a socket</text>
+
+      <!-- Row 4: systems of record -->
+      <rect class="box box-bnd" x="50" y="560" width="232" height="92" rx="5"/>
+      <text class="t-title" x="166" y="588" text-anchor="middle">Jira / Confluence</text>
+      <text class="t-sub" x="166" y="606" text-anchor="middle">issues, JQL, pages, spaces</text>
+      <text class="t-sub t-bnd" x="166" y="624" text-anchor="middle">the only network hop</text>
+
+      <rect class="box box-local" x="310" y="560" width="248" height="92" rx="5"/>
+      <text class="t-title" x="434" y="588" text-anchor="middle">Local git clones</text>
+      <text class="t-sub" x="434" y="606" text-anchor="middle">checked-out trees on disk</text>
+      <text class="t-sub t-local" x="434" y="624" text-anchor="middle">openapi.yaml / swagger.json here</text>
+
+      <rect class="box box-local" x="600" y="560" width="220" height="92" rx="5"/>
+      <text class="t-title" x="710" y="588" text-anchor="middle">designs/&lt;feature&gt;/</text>
+      <text class="t-sub" x="710" y="606" text-anchor="middle">Figma PNG exports</text>
+      <text class="t-sub t-local" x="710" y="624" text-anchor="middle">+ screens.manifest.yaml</text>
+
+      <rect class="box box-model" x="864" y="560" width="152" height="92" rx="5"/>
+      <text class="t-title" x="940" y="595" text-anchor="middle">Application</text>
+      <text class="t-title" x="940" y="613" text-anchor="middle">under test</text>
+
+      <!-- Connections -->
+      <line class="ln" x1="400" y1="114" x2="400" y2="182" marker-start="url(#p1w)" marker-end="url(#p1w)"/>
+      <rect class="chip" x="410" y="130" width="128" height="34" rx="2"/>
+      <text class="t-chip" x="418" y="144">tool calls /</text>
+      <text class="t-chip" x="418" y="157">structured results</text>
+
+      <line class="ln" x1="200" y1="244" x2="280" y2="244" marker-end="url(#p1w)"/>
+      <rect class="chip" x="206" y="222" width="70" height="16" rx="2"/>
+      <text class="t-chip" x="241" y="234" text-anchor="middle">declares</text>
+
+      <line class="ln" x1="580" y1="219" x2="660" y2="219" marker-start="url(#p1w)" marker-end="url(#p1w)"/>
+      <rect class="chip" x="582" y="198" width="76" height="16" rx="2"/>
+      <text class="t-chip" x="620" y="210" text-anchor="middle">read / write</text>
+
+      <polyline class="ln ln-dash" points="340,280 340,322 166,322 166,364" marker-start="url(#p1w)" marker-end="url(#p1w)"/>
+      <rect class="chip" x="180" y="314" width="122" height="16" rx="2"/>
+      <text class="t-chip" x="241" y="326" text-anchor="middle">issues · pages</text>
+
+      <line class="ln ln-dash" x1="434" y1="280" x2="434" y2="364" marker-start="url(#p1w)" marker-end="url(#p1w)"/>
+      <rect class="chip" x="344" y="336" width="180" height="16" rx="2"/>
+      <text class="t-chip" x="434" y="348" text-anchor="middle">repos · commits · endpoints</text>
+
+      <path class="ln ln-local" d="M580,270 H710 V560" fill="none" marker-start="url(#p1l)" marker-end="url(#p1l)"/>
+      <rect class="chip" x="634" y="392" width="152" height="16" rx="2"/>
+      <text class="t-chip" x="710" y="404" text-anchor="middle">in-process · no MCP hop</text>
+
+      <line class="ln ln-bnd" x1="166" y1="432" x2="166" y2="560" marker-start="url(#p1b)" marker-end="url(#p1b)"/>
+      <rect class="chip" x="91" y="494" width="150" height="16" rx="2"/>
+      <text class="t-chip" x="166" y="506" text-anchor="middle">HTTPS · its own .env</text>
+
+      <line class="ln ln-local" x1="434" y1="432" x2="434" y2="560" marker-start="url(#p1l)" marker-end="url(#p1l)"/>
+      <rect class="chip" x="363" y="494" width="142" height="16" rx="2"/>
+      <text class="t-chip" x="434" y="506" text-anchor="middle">reads the tree only</text>
+
+      <line class="ln ln-model" x1="528" y1="83" x2="760" y2="83" marker-start="url(#p1m)" marker-end="url(#p1m)"/>
+      <rect class="chip" x="588" y="75" width="112" height="16" rx="2"/>
+      <text class="t-chip" x="644" y="87" text-anchor="middle">live exploration</text>
+
+      <line class="ln ln-model" x1="878" y1="114" x2="878" y2="560" marker-end="url(#p1m)"/>
+      <rect class="chip" x="816" y="330" width="124" height="16" rx="2"/>
+      <text class="t-chip" x="878" y="342" text-anchor="middle">drives a browser</text>
+    </svg>
+    </div>
+    <figcaption>Four intake paths, deliberately drawn apart. Only one crosses the network. Only one
+    bypasses <code>tto-testgen</code> entirely — and it is the one whose output (verified locators)
+    the agent must hand back through <code>ui_model_upsert</code> before the toolchain will keep it.</figcaption>
+  </figure>
+
+  <ul class="legend">
+    <li><span class="sw wire"></span><span><b>Wire</b> — a structural stdio connection held open for the session</span></li>
+    <li><span class="sw dash"></span><span><b>Dashed</b> — an MCP session opened for one call, then closed</span></li>
+    <li><span class="sw bnd"></span><span><b>Rust</b> — leaves this machine; a credential is involved</span></li>
+    <li><span class="sw loc"></span><span><b>Green</b> — local disk only, never the network</span></li>
+    <li><span class="sw mod"></span><span><b>Violet</b> — the probabilistic half: the model and what it drives</span></li>
+  </ul>
+
+  <h3>Four things to read off the plate</h3>
+  <ul class="notes">
+    <li><strong>Nothing here holds a credential except <code>tt-atlassian-mcp</code>'s own
+    <code>.env</code></strong>, which TAAS never reads. <code>tt-bitbucket-mcp</code> never contacts
+    a network at all — it reads git clones already on disk.</li>
+    <li><strong>Every arrow into <code>tto-testgen</code> from Atlassian or Bitbucket is a fresh
+    session</strong>, opened for one call and closed immediately — not a connection held open for the
+    life of the process. A call that cites a direct Jira link never opens one at all.</li>
+    <li><strong>API contracts are discovered, not fetched.</strong> The spec's <em>location</em> comes
+    back from the repository scan; its content does not. Plate 2 shows exactly where that line falls.</li>
+    <li><strong>Design information arrives as an exported folder, not a Figma API call.</strong> No MCP
+    server sits between <code>tto-testgen</code> and the images, and the image bytes never leave the
+    folder — only a hash does. Plate 3.</li>
+  </ul>
+
+  <p style="margin-top:1.4rem">A single request walks this graph more than once. Asking Copilot to
+  generate test cases for a feature typically ingests through both vendored servers first (their
+  sessions open and close), builds the requirement and coverage model against SQLite, and only then
+  generates — each step a separate, auditable tool call, never one opaque action.</p>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="register">
+  <p class="eyebrow">Source register</p>
+  <h2>Eight rules, one file</h2>
+  <p class="lede">Every source is declared as a plain link in <code>resources.md</code> — nothing is
+  labelled by hand. Classification applies the rules below in order, first match wins; the order is a
+  design decision, not an accident of authorship. Rule 2 matches a bare <code>PROJ-123</code> token and
+  would swallow a JQL string containing one, so rule 3 cannot precede it.</p>
+
+  <div class="table-wrap">
+  <table>
+    <caption>src/tto_testgen/adapters/sources/manifest.py · dispatch.py</caption>
+    <thead>
+      <tr>
+        <th style="width:3.5rem">Rule</th>
+        <th>What it matches</th>
+        <th>Inferred type</th>
+        <th>Fetched by</th>
+        <th>Reaches</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Jira <code>/browse/</code> or REST issue URL</td><td><code>JIRA_ISSUE</code></td><td><code>tt-atlassian-mcp</code></td><td><span class="tag net">network</span></td></tr>
+      <tr><td class="num">2</td><td>A bare key on its own line — <code>PAY-13</code></td><td><code>JIRA_ISSUE</code></td><td><code>tt-atlassian-mcp</code></td><td><span class="tag net">network</span></td></tr>
+      <tr><td class="num">3</td><td><code>jql=</code> in a URL, or a bare <code>project=</code> / <code>issuetype=</code> / <code>labels=</code> filter</td><td><code>JIRA_QUERY</code></td><td><code>tt-atlassian-mcp</code>, paged</td><td><span class="tag net">network</span></td></tr>
+      <tr><td class="num">4</td><td><code>/wiki/spaces/…/pages/123</code> or <code>pageId=</code></td><td><code>CONFLUENCE_PAGE</code></td><td><code>tt-atlassian-mcp</code></td><td><span class="tag net">network</span></td></tr>
+      <tr><td class="num">5</td><td>A space root — <code>/wiki/spaces/PAY</code></td><td><code>CONFLUENCE_SPACE</code></td><td><code>tt-atlassian-mcp</code>, CQL by space</td><td><span class="tag net">network</span></td></tr>
+      <tr><td class="num">6</td><td>A Bitbucket repository URL, either URL shape</td><td><code>BITBUCKET_REPO</code></td><td><code>tt-bitbucket-mcp</code></td><td><span class="tag disk">local disk</span></td></tr>
+      <tr><td class="num">7</td><td>A path ending <code>openapi</code>/<code>swagger</code><code>.yaml|.yml|.json</code>, outside a Bitbucket URL</td><td><code>OPENAPI_SPEC</code></td><td><em>no fetcher — by design</em></td><td><span class="tag none">nothing</span></td></tr>
+      <tr><td class="num">8</td><td>An existing directory on disk — the one rule that touches the filesystem</td><td><code>DESIGN_FOLDER</code></td><td><code>DesignAssetAdapter</code>, in-process</td><td><span class="tag proc">in-process</span></td></tr>
+      <tr><td class="num">9</td><td>Nothing matched</td><td><code>UNCLASSIFIED</code></td><td>—</td><td><span class="tag none">reported</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="margin-top:1.2rem">Two sources never appear in this table because they never come from
+  <code>resources.md</code>. <strong>OpenAPI specs inside a repository</strong> are found by the
+  repository scan itself (Plate 2). <strong>Live screens and locators</strong> come from
+  <code>playwright-mcp</code>, which the agent drives directly and stores through
+  <code>ui_model_upsert</code>; a locator is marked verified only when it was confirmed against the
+  running application.</p>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="swagger">
+  <p class="eyebrow">Plate 2</p>
+  <h2>Where API contracts come from</h2>
+  <p class="lede">You will rarely declare a Swagger or OpenAPI file yourself. The system finds specs on
+  its own while reading a Bitbucket repository — and stops at the file's path, deliberately, because
+  the vendored server exposes no tool that returns a file's raw content.</p>
+
+  <figure>
+    <p class="plate-no">Plate 2 — spec discovery, and where the derivation stops</p>
+    <div class="plate-scroll">
+    <svg class="plate narrow" viewBox="0 0 720 470" role="img"
+         aria-label="A Bitbucket repository declared in resources.md is classified by rule 6, then api_model_derive opens one session to tt-bitbucket-mcp's bitbucket_endpoints tool, which does a read-only scan of the checked-out tree. That scan produces two things: a list of endpoints parsed out of the code by regular expression across nine languages, which is stored in the API model; and a list of spec file paths matched by filename against git ls-files, which is reported as paths only and never parsed.">
+      <defs>
+        <marker id="p2w" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-wire"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p2l" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-local"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p2b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-bnd"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+      </defs>
+
+      <rect class="box" x="190" y="16" width="340" height="58" rx="5"/>
+      <text class="t-title" x="360" y="41" text-anchor="middle">A repository URL in resources.md</text>
+      <text class="t-sub" x="360" y="59" text-anchor="middle">bitbucket.org/org/checkout-service</text>
+
+      <line class="ln" x1="360" y1="74" x2="360" y2="126" marker-end="url(#p2w)"/>
+      <rect class="chip" x="272" y="92" width="176" height="16" rx="2"/>
+      <text class="t-chip" x="360" y="104" text-anchor="middle">rule 6 → BITBUCKET_REPO</text>
+
+      <rect class="box box-wire" x="190" y="126" width="340" height="58" rx="5"/>
+      <text class="t-title" x="360" y="151" text-anchor="middle">api_model_derive(repo_slug)</text>
+      <text class="t-sub" x="360" y="169" text-anchor="middle">accepts several repositories at once</text>
+
+      <line class="ln ln-dash" x1="360" y1="184" x2="360" y2="236" marker-end="url(#p2w)"/>
+      <rect class="chip" x="268" y="202" width="184" height="16" rx="2"/>
+      <text class="t-chip" x="360" y="214" text-anchor="middle">one session, then closed</text>
+
+      <rect class="box box-local" x="150" y="236" width="420" height="66" rx="5"/>
+      <text class="t-title" x="360" y="262" text-anchor="middle">tt-bitbucket-mcp · bitbucket_endpoints</text>
+      <text class="t-sub" x="360" y="281" text-anchor="middle">read-only scan of the checked-out tree</text>
+
+      <polyline class="ln ln-local" points="290,302 290,332 180,332 180,362" marker-end="url(#p2l)"/>
+      <rect class="chip" x="182" y="324" width="132" height="16" rx="2"/>
+      <text class="t-chip" x="248" y="336" text-anchor="middle">route regex, 9 langs</text>
+
+      <polyline class="ln ln-bnd" points="430,302 430,332 540,332 540,362" marker-end="url(#p2b)"/>
+      <rect class="chip" x="418" y="324" width="132" height="16" rx="2"/>
+      <text class="t-chip" x="484" y="336" text-anchor="middle">git ls-files, 5 names</text>
+
+      <rect class="box box-local" x="24" y="362" width="312" height="86" rx="5"/>
+      <text class="t-title" x="180" y="388" text-anchor="middle">endpoints[]</text>
+      <text class="t-sub" x="180" y="407" text-anchor="middle">method · route · file:line · symbol</text>
+      <text class="t-sub t-local" x="180" y="426" text-anchor="middle">parsed and stored in the API model</text>
+
+      <rect class="box box-bnd" x="384" y="362" width="312" height="86" rx="5"/>
+      <text class="t-title" x="540" y="388" text-anchor="middle">api_spec_files[]</text>
+      <text class="t-sub" x="540" y="407" text-anchor="middle">swagger|openapi .json|.yaml|.yml</text>
+      <text class="t-sub t-bnd" x="540" y="426" text-anchor="middle">path only — never the content</text>
+    </svg>
+    </div>
+    <figcaption>The fork at the bottom is the whole claim: one branch is fully derived, the other stops
+    at a file path. The tool description says so too, so the agent never asserts a shape it did not read.</figcaption>
+  </figure>
+
+  <ul class="notes">
+    <li><strong>The five filenames matched</strong> are <code>swagger.json</code>,
+    <code>openapi.json</code>, <code>swagger.yaml</code>, <code>openapi.yaml</code> and
+    <code>openapi.yml</code>, tested against the repository's <code>git ls-files</code> listing —
+    so an untracked spec is invisible, by the same rule that makes the scan reproducible.</li>
+    <li><strong>Paths surface as <code>spec_files_found</code></strong> on the
+    <code>api_model_derive</code> result, prefixed with the repository slug
+    (<code>checkout-service:docs/openapi.yaml</code>), and in the human-readable output as
+    <em>"the best source for expected results the test cases are missing."</em></li>
+    <li><strong>Why the derivation stops there.</strong> <code>tt-bitbucket-mcp</code> has no tool that
+    returns a file's raw bytes — <code>bitbucket_file</code>'s structured payload carries no content
+    field, and its text output is a line-numbered human-readable snippet, not parseable source. A
+    spec's location can be surfaced honestly; its shapes cannot be, without a capability the server
+    does not currently expose.</li>
+    <li><strong>A spec declared standalone (rule 7) has no fetcher at all.</strong> This system has no
+    generic HTTP fetcher, so rather than inventing one, the type resolves to the existing
+    "no adapter for this type" error. The classification still happens, so the entry is reported
+    rather than silently dropped.</li>
+  </ul>
+
+  <div class="callout">
+    <p class="spec-k">Consequence for the reader</p>
+    <p>When a plate or a report cites an endpoint's <em>shape</em> — request body, status codes, auth —
+    that came from the code scan or from a human, never from a spec file the system parsed. Open the
+    reported path and compare it yourself. Endpoint <code>status_codes</code> stays empty and
+    <code>auth_requirement</code> stays <code>UNKNOWN</code> when the scan found no evidence either
+    way; that is the required behaviour, not a gap in the data.</p>
+  </div>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="design">
+  <p class="eyebrow">Plate 3</p>
+  <h2>Where design information comes from</h2>
+  <p class="lede">There is no Figma integration and no Figma token. Design information enters as a
+  folder of exported screenshots that someone drops into the repository, and a filename convention does
+  the work an API would otherwise do. A directory path in <code>resources.md</code> is the only
+  classification rule that touches the filesystem.</p>
+
+  <figure>
+    <p class="plate-no">Plate 3 — a filename and an optional sidecar become a hashed record</p>
+    <div class="plate-scroll">
+    <svg class="plate narrow" viewBox="0 0 720 566" role="img"
+         aria-label="A directory path such as ./designs/checkout in resources.md is classified by rule 8 as a design folder and read in-process by DesignAssetAdapter, with no MCP server involved. Each image filename is split on double underscores into feature, screen and state; an optional screens.manifest.yaml overrides individual fields. The two merge into a ParsedAsset that records which field came from where, and then into a SourceRecord whose image field is a content hash — the image bytes never leave the folder.">
+      <defs>
+        <marker id="p3w" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-wire"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p3l" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-local"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+      </defs>
+
+      <rect class="box" x="150" y="16" width="420" height="58" rx="5"/>
+      <text class="t-title" x="360" y="41" text-anchor="middle">./designs/checkout — a directory path</text>
+      <text class="t-sub" x="360" y="59" text-anchor="middle">one line in resources.md, no label</text>
+
+      <line class="ln ln-local" x1="360" y1="74" x2="360" y2="120" marker-end="url(#p3l)"/>
+      <rect class="chip" x="242" y="89" width="236" height="16" rx="2"/>
+      <text class="t-chip" x="360" y="101" text-anchor="middle">rule 8 — the filesystem is consulted</text>
+
+      <rect class="box box-local" x="150" y="120" width="420" height="58" rx="5"/>
+      <text class="t-title" x="360" y="145" text-anchor="middle">DesignAssetAdapter</text>
+      <text class="t-sub" x="360" y="163" text-anchor="middle">in-process · no MCP server in between</text>
+
+      <polyline class="ln" points="280,178 280,202 180,202 180,226" marker-end="url(#p3w)"/>
+      <polyline class="ln" points="440,178 440,202 540,202 540,226" marker-end="url(#p3w)"/>
+
+      <rect class="box" x="26" y="226" width="308" height="82" rx="5"/>
+      <text class="t-title" x="180" y="252" text-anchor="middle">checkout__cart__empty.png</text>
+      <text class="t-sub" x="180" y="271" text-anchor="middle">feature __ screen __ state</text>
+      <text class="t-sub" x="180" y="289" text-anchor="middle">2 segments → state = "default"</text>
+
+      <rect class="box" x="386" y="226" width="308" height="82" rx="5"/>
+      <text class="t-title" x="540" y="252" text-anchor="middle">screens.manifest.yaml</text>
+      <text class="t-sub" x="540" y="271" text-anchor="middle">optional sidecar, safe_load only</text>
+      <text class="t-sub" x="540" y="289" text-anchor="middle">overrides field by field</text>
+
+      <polyline class="ln" points="180,308 180,334 300,334 300,358" marker-end="url(#p3w)"/>
+      <polyline class="ln" points="540,308 540,334 420,334 420,358" marker-end="url(#p3w)"/>
+      <rect class="chip" x="316" y="326" width="88" height="16" rx="2"/>
+      <text class="t-chip" x="360" y="338" text-anchor="middle">merge</text>
+
+      <rect class="box box-local" x="150" y="358" width="420" height="94" rx="5"/>
+      <text class="t-title" x="360" y="384" text-anchor="middle">ParsedAsset</text>
+      <text class="t-sub" x="360" y="403" text-anchor="middle">feature · screen · state · route · jira_key</text>
+      <text class="t-sub t-local" x="360" y="422" text-anchor="middle">+ origin: which field came from where</text>
+      <text class="t-sub" x="360" y="440" text-anchor="middle">field-by-field override, so nothing is restated</text>
+
+      <line class="ln ln-local" x1="360" y1="452" x2="360" y2="490" marker-end="url(#p3l)"/>
+      <rect class="chip" x="266" y="463" width="188" height="16" rx="2"/>
+      <text class="t-chip" x="360" y="475" text-anchor="middle">image → content hash</text>
+
+      <rect class="box box-local" x="150" y="490" width="420" height="60" rx="5"/>
+      <text class="t-title" x="360" y="515" text-anchor="middle">SourceRecord</text>
+      <text class="t-sub t-local" x="360" y="534" text-anchor="middle">the image bytes never leave the folder</text>
+    </svg>
+    </div>
+    <figcaption>Only the hash travels. That is what makes change detection correct for a binary file:
+    the record's content hash changes if and only if the mapping or the underlying image actually
+    changed — the same rule every other resource obeys, applied properly rather than skipped.</figcaption>
+  </figure>
+
+  <div class="table-wrap">
+  <table>
+    <caption>Filename convention · src/tto_testgen/adapters/sources/design_assets.py</caption>
+    <thead>
+      <tr><th>Filename</th><th>Segments</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>checkout__cart.png</code></td><td class="num">2</td><td>feature <code>checkout</code>, screen <code>cart</code>, state defaults to <code>default</code></td></tr>
+      <tr><td><code>checkout__cart__empty.png</code></td><td class="num">3</td><td>feature, screen and state all taken from the name</td></tr>
+      <tr><td><code>cart.png</code> · <code>a__b__c__d.png</code></td><td class="num">1 or 4+</td><td>Reported as <strong>unassociated</strong>, by name — never guessed at, never dropped</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <ul class="notes" style="margin-top:1.4rem">
+    <li><strong>Accepted image types</strong> are <code>.png</code>, <code>.jpg</code>,
+    <code>.jpeg</code> and <code>.webp</code>. Everything is slugified — lowercased, non-alphanumerics
+    collapsed to hyphens — so <code>Checkout Cart</code> and <code>checkout-cart</code> resolve to the
+    same screen.</li>
+    <li><strong>The sidecar overrides one field at a time.</strong> A manifest entry can correct just
+    the <code>route</code> or just the <code>jira_key</code> without restating the rest — and a
+    restatement is a chance to introduce an error. Each asset records an <code>origin</code> map saying
+    which value came from the filename and which from the manifest, so a field-by-field override stays
+    auditable.</li>
+    <li><strong>The sidecar is untrusted input.</strong> It is parsed with <code>yaml.safe_load</code>,
+    not <code>yaml.load</code>, because a shared design folder is exactly the kind of place a file
+    arrives from without review.</li>
+    <li><strong>Unassociated files are surfaced, not swallowed.</strong> The ingestion report names the
+    first five and counts the rest, on the same guidance channel every other resource's notices use.</li>
+  </ul>
+
+  <div class="callout good">
+    <p class="spec-k">Operationally</p>
+    <p>Export from Figma at whatever fidelity you like, name the files
+    <code>feature__screen__state.png</code>, drop them in <code>designs/&lt;feature&gt;/</code>, add that
+    directory to <code>resources.md</code>, and say <em>"ingest the resources for checkout."</em> Add a
+    <code>screens.manifest.yaml</code> beside them only when a filename cannot carry something — a route,
+    or the Jira key a screen belongs to.</p>
+  </div>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="pipeline">
+  <p class="eyebrow">Plate 4</p>
+  <h2>Seven stages, one gate at a time</h2>
+  <p class="lede">Copilot Chat works in one of seven modes, one per stage, selected from the chat mode
+  dropdown. Each mode names the tools visible in it, works on one feature at a time, and stops after one
+  stage — it will not choose the next one for you. A stage cannot begin until the previous one is
+  complete, approved, and unchanged since approval; <code>unit_begin</code> enforces that, not convention.</p>
+
+  <figure>
+    <p class="plate-no">Plate 4 — the pipeline, its gates, and the tools that do the work</p>
+    <div class="plate-scroll">
+    <svg class="plate" viewBox="0 0 1040 252" role="img"
+         aria-label="Seven pipeline stages in sequence: ingest, analyse, requirements, coverage, cases, automation, handover. Every transition is gated by unit_begin, which refuses to start a stage whose predecessor is incomplete or has changed since approval. The transition from coverage to cases carries an additional human gate, stage_approve, which only the Test Lead may pass. Each stage is annotated with the tools it uses.">
+      <defs>
+        <marker id="p4w" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-wire"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+      </defs>
+
+      <text class="t-grp" x="20" y="26">STAGE</text>
+      <text class="t-chip t-bnd" x="593" y="26" text-anchor="middle">stage_approve · Test Lead only</text>
+
+      <rect class="box box-wire" x="20"  y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="82"  y="83" text-anchor="middle">Ingest</text>
+      <rect class="box box-wire" x="166" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="228" y="83" text-anchor="middle">Analyse</text>
+      <rect class="box box-wire" x="312" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="374" y="83" text-anchor="middle">Requirements</text>
+      <rect class="box box-wire" x="458" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="520" y="83" text-anchor="middle">Coverage</text>
+      <rect class="box box-wire" x="604" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="666" y="83" text-anchor="middle">Cases</text>
+      <rect class="box box-wire" x="750" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="812" y="83" text-anchor="middle">Automation</text>
+      <rect class="box box-wire" x="896" y="44" width="124" height="66" rx="5"/>
+      <text class="t-title" x="958" y="83" text-anchor="middle">Handover</text>
+
+      <line class="ln" x1="144" y1="77" x2="166" y2="77" marker-end="url(#p4w)"/>
+      <line class="ln" x1="290" y1="77" x2="312" y2="77" marker-end="url(#p4w)"/>
+      <line class="ln" x1="436" y1="77" x2="458" y2="77" marker-end="url(#p4w)"/>
+      <line class="ln" x1="582" y1="77" x2="604" y2="77" marker-end="url(#p4w)"/>
+      <line class="ln" x1="728" y1="77" x2="750" y2="77" marker-end="url(#p4w)"/>
+      <line class="ln" x1="874" y1="77" x2="896" y2="77" marker-end="url(#p4w)"/>
+
+      <line class="gate" x1="155" y1="52" x2="155" y2="102"/>
+      <line class="gate" x1="301" y1="52" x2="301" y2="102"/>
+      <line class="gate" x1="447" y1="52" x2="447" y2="102"/>
+      <line class="gate" x1="739" y1="52" x2="739" y2="102"/>
+      <line class="gate" x1="885" y1="52" x2="885" y2="102"/>
+      <line class="gate-hi" x1="590" y1="34" x2="590" y2="120"/>
+      <line class="gate-hi" x1="596" y1="34" x2="596" y2="120"/>
+
+      <text class="t-chip" x="520" y="136" text-anchor="middle">unit_begin gates every transition: it refuses a stage whose predecessor is incomplete, unapproved, or changed since approval</text>
+
+      <line class="ln ln-ink" x1="20" y1="158" x2="1020" y2="158"/>
+      <text class="t-grp" x="20" y="182">TOOLS</text>
+      <text class="t-sub" x="82"  y="206" text-anchor="middle">ingest_resources</text>
+      <text class="t-sub" x="82"  y="222" text-anchor="middle">delta_detect</text>
+      <text class="t-sub" x="228" y="206" text-anchor="middle">analysis_upsert</text>
+      <text class="t-sub" x="228" y="222" text-anchor="middle">api_model_derive</text>
+      <text class="t-sub" x="228" y="238" text-anchor="middle">ui_model_upsert</text>
+      <text class="t-sub" x="374" y="206" text-anchor="middle">requirements_upsert</text>
+      <text class="t-sub" x="374" y="222" text-anchor="middle">trace_query</text>
+      <text class="t-sub" x="520" y="206" text-anchor="middle">coverage_build</text>
+      <text class="t-sub" x="520" y="222" text-anchor="middle">coverage_forecast</text>
+      <text class="t-sub" x="520" y="238" text-anchor="middle">coverage_approve</text>
+      <text class="t-sub" x="666" y="206" text-anchor="middle">testcases_upsert</text>
+      <text class="t-sub" x="666" y="222" text-anchor="middle">duplicates_check</text>
+      <text class="t-sub" x="666" y="238" text-anchor="middle">views_emit</text>
+      <text class="t-sub" x="812" y="206" text-anchor="middle">automation_emit</text>
+      <text class="t-sub" x="812" y="222" text-anchor="middle">automation_report</text>
+      <text class="t-sub" x="958" y="206" text-anchor="middle">handover_assemble</text>
+      <text class="t-sub" x="958" y="222" text-anchor="middle">handover_verify</text>
+      <text class="t-sub" x="958" y="238" text-anchor="middle">reports_generate</text>
+    </svg>
+    </div>
+    <figcaption>Five of the six transitions are machine gates — <code>unit_begin</code> refuses a stage
+    whose predecessor is incomplete or has changed since approval. One is a human gate, and it sits
+    before anything is generated rather than after: the coverage baseline is approved first, then the
+    corpus is generated against it.</figcaption>
+  </figure>
+
+  <p style="margin-top:1.4rem">Interrupted work loses nothing, because it is transactional:
+  <code>/resume-run</code> reports what is interrupted, what is complete and approved, and the corpus
+  totals — and deliberately recommends nothing. <code>delta_detect</code> runs at any stage and answers
+  the standing question of whether the ground moved since the last completed run.</p>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="layers">
+  <p class="eyebrow">Plate 5</p>
+  <h2>Layering, and what holds it</h2>
+  <p class="lede">Dependencies point inward. The contract that matters most is that
+  <code>domain/</code> imports nothing outside the standard library and itself — that is the
+  precondition for the property suite. The moment a domain module imports an adapter, the properties
+  need a database and stop being cheap enough to run on every commit.</p>
+
+  <figure>
+    <p class="plate-no">Plate 5 — the layer stack and the two edges lint-imports rejects</p>
+    <div class="plate-scroll">
+    <svg class="plate narrow" viewBox="0 0 760 440" role="img"
+         aria-label="Six layers stacked: mcp at the top, then services, adapters, ports, domain, and platform at the bottom. Imports are allowed downward only. Two upward edges are drawn crossed out: domain importing adapters, and adapters importing services. lint-imports fails the build on either.">
+      <defs>
+        <marker id="p5w" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-wire"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+        <marker id="p5b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto" class="mk-bnd"><path d="M0,0 L10,4 L0,8 Z"/></marker>
+      </defs>
+
+      <line class="ln" x1="128" y1="30" x2="128" y2="386" marker-end="url(#p5w)"/>
+      <text class="t-chip" x="112" y="208" text-anchor="middle" transform="rotate(-90 112 208)">imports allowed downward only</text>
+
+      <rect class="box box-wire" x="170" y="24"  width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="47">mcp/</text>
+      <text class="t-sub"   x="192" y="65">stdio server, two-tier tool surface</text>
+
+      <rect class="box" x="170" y="88"  width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="111">services/</text>
+      <text class="t-sub"   x="192" y="129">orchestration; depends on ports, never adapters</text>
+
+      <rect class="box" x="170" y="152" width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="175">adapters/</text>
+      <text class="t-sub"   x="192" y="193">SQLite, MCP client, emitters, renderers</text>
+
+      <rect class="box" x="170" y="216" width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="239">ports/</text>
+      <text class="t-sub"   x="192" y="257">protocol definitions only</text>
+
+      <rect class="box box-local" x="170" y="280" width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="303">domain/</text>
+      <text class="t-sub"   x="192" y="321">pure logic — stdlib only, no I/O</text>
+
+      <rect class="box" x="170" y="344" width="380" height="52" rx="5"/>
+      <text class="t-title" x="192" y="367">platform/</text>
+      <text class="t-sub"   x="192" y="385">result types, logging, config, health</text>
+
+      <path class="ln ln-bnd" d="M550,310 H680 V195 H556" fill="none" marker-end="url(#p5b)"/>
+      <line class="ln ln-bnd" x1="672" y1="247" x2="688" y2="263"/>
+      <line class="ln ln-bnd" x1="688" y1="247" x2="672" y2="263"/>
+
+      <path class="ln ln-bnd" d="M550,160 H610 V100 H556" fill="none" marker-end="url(#p5b)"/>
+      <line class="ln ln-bnd" x1="602" y1="122" x2="618" y2="138"/>
+      <line class="ln ln-bnd" x1="618" y1="122" x2="602" y2="138"/>
+
+      <text class="t-chip t-bnd" x="714" y="208" text-anchor="middle" transform="rotate(-90 714 208)">lint-imports fails the build</text>
+    </svg>
+    </div>
+    <figcaption>Drawn as edges that would exist and are refused, rather than as absent lines — because
+    a boundary you cannot see erodes silently. <code>composition.py</code> is the one module permitted
+    to know both a protocol and its implementation.</figcaption>
+  </figure>
+
+  <div class="table-wrap">
+  <table>
+    <caption>.importlinter · run with <code>uv run lint-imports</code></caption>
+    <thead><tr><th>Contract</th><th>What it forbids</th><th>Why it exists</th></tr></thead>
+    <tbody>
+      <tr><td><code>domain-is-pure</code></td><td><code>domain/</code> importing adapters, services, mcp, ports, or <code>pydantic</code> / <code>mcp</code> / <code>jinja2</code></td><td>Keeps the Hypothesis property suite runnable with no database, so it can run on every commit</td></tr>
+      <tr><td><code>adapters-do-not-import-services</code></td><td><code>adapters/</code> importing <code>services/</code></td><td>An adapter that reaches back up into orchestration cannot be swapped or faked</td></tr>
+      <tr><td><code>services-do-not-import-adapters</code></td><td><code>services/</code> importing <code>sqlite.repositories</code> or <code>sqlite.connection</code></td><td>Every service must be constructible in a test with in-memory fakes</td></tr>
+      <tr><td><code>layers</code></td><td>Any upward import across mcp → services → adapters → ports → domain → platform</td><td>One declared direction, mechanically checked</td></tr>
+      <tr><td><code>subprocess-is-isolated</code></td><td><code>subprocess</code> imported anywhere but <code>adapters/command_runner.py</code></td><td>Starting a process is the most consequential capability this codebase can acquire; a future unit reaching for it fails the build rather than quietly gaining it</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="invariants">
+  <p class="eyebrow">Enforcement</p>
+  <h2>What the toolchain refuses</h2>
+  <p class="lede">These are refusals, not warnings. Each exists because the alternative is a corpus
+  nobody can trust — and a rule the model is merely asked to follow erodes over 6,000 cases and many
+  sessions, where a rule the storage layer enforces does not.</p>
+
+  <div class="table-wrap">
+  <table>
+    <caption>Domain validators, service gates and database constraints</caption>
+    <thead><tr><th>Rule</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Every test case has at least one ordered step with an expected result</td><td>Domain construction, D7 validation, <em>and</em> a database trigger</td></tr>
+      <tr><td>Every test case resolves to a Jira key that was actually ingested</td><td>D3, D7, <em>and</em> a database trigger</td></tr>
+      <tr><td>Identifiers are allocated by the toolchain, never supplied</td><td>D5, plus an immutability trigger</td></tr>
+      <tr><td>Near-duplicates are refused</td><td>D4, using indexed bucket selection</td></tr>
+      <tr><td>Test data names the equivalence class it represents</td><td>Domain construction and a <code>NOT NULL</code> constraint</td></tr>
+      <tr><td>Nothing is hard-deleted</td><td>No <code>DELETE</code> against a business entity exists in any query module</td></tr>
+      <tr><td>Only the Test Lead approves a coverage baseline</td><td><code>stage_approve</code></td></tr>
+      <tr><td>A completed unit is not re-run without an explicit instruction</td><td><code>unit_begin</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="margin-top:1.2rem">The two most important rules are enforced twice, in the domain and in the
+  schema. The validator produces an error the agent can act on; the constraint makes the rule unbreakable
+  even if a future code path bypasses the validator. Neither alone is enough: a constraint gives an
+  unhelpful error, and a validator can be forgotten.</p>
+
+  <h3>Two settings that are business rules, not preferences</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>TAAS_SIMILARITY_THRESHOLD</code></td><td class="num">0.90</td><td>What counts as a near-duplicate</td></tr>
+      <tr><td><code>TAAS_COMMIT_LOOKBACK_DAYS</code></td><td class="num">180</td><td>How far back a Jira key may be derived from commits</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="margin-top:1.2rem">Changing either changes the corpus, so the effective values are recorded
+  in run metadata alongside the results they produced.</p>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="trust">
+  <p class="eyebrow">Trust boundary</p>
+  <h2>What leaves this machine</h2>
+
+  <div class="table-wrap">
+  <table>
+    <caption>Data residency and credential holding</caption>
+    <thead><tr><th>Component</th><th>Credential</th><th>Network</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>tto-testgen</code></td><td>None</td><td><span class="tag none">none</span></td><td>stdio only; opens no network listener, on or off VS Code</td></tr>
+      <tr><td><code>tt-atlassian-mcp</code></td><td>Its own <code>.env</code>, beside its script</td><td><span class="tag net">HTTPS to Atlassian</span></td><td>TAAS never reads that file. <code>ATLASSIAN_READ_ONLY</code> defaults to <code>true</code></td></tr>
+      <tr><td><code>tt-bitbucket-mcp</code></td><td>None</td><td><span class="tag none">none</span></td><td>Reads clones already on disk; never contacts Bitbucket's API</td></tr>
+      <tr><td><code>playwright-mcp</code></td><td>Whatever the operator types into the app</td><td><span class="tag mdl">to the app under test</span></td><td>Driven by the agent, not by <code>tto-testgen</code></td></tr>
+      <tr><td>Design folder</td><td>None</td><td><span class="tag disk">disk only</span></td><td>Only a content hash is stored; image bytes never move</td></tr>
+      <tr><td>SQLite <code>.taas/taas.db</code></td><td>None</td><td><span class="tag disk">disk only</span></td><td>All state. Backups in <code>.taas/backups/</code>, exports in <code>generated/exports/</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Recovery, in two mechanisms because they cover different failures</h3>
+  <ul class="notes">
+    <li><strong>Backups</strong> (<code>.taas/backups/</code>, newest 10 retained, one taken
+    automatically before any migration) restore byte-identically, but are only readable by a compatible
+    schema version.</li>
+    <li><strong>Exports</strong> (<code>generated/exports/</code>, JSON Lines per table) survive a
+    database the current code can no longer open.</li>
+    <li><strong>Every forward migration ships a tested reverse</strong>, so rolling back to a release tag
+    and reverting the schema is a supported path rather than an emergency.</li>
+  </ul>
+</section>
+
+<hr class="div">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="scope">
+  <p class="eyebrow">Boundaries</p>
+  <h2>Not in scope</h2>
+  <p>Test execution and Jenkins orchestration. This system generates tests and packages them; the
+  pipeline runs them. It never pushes to a repository and never writes Jenkins configuration.</p>
+  <p>Nor does it fetch a spec over HTTP, call the Figma API, or hold a Bitbucket credential — three
+  capabilities it could plausibly be assumed to have, and deliberately does not. Plates 2 and 3 exist
+  largely to make that legible before someone designs around the assumption.</p>
+</section>
+
+<footer>
+  <p><strong>Sources.</strong> Every claim on this sheet is drawn from repository source at commit
+  <code>ae2f5ca</code>: <code>adapters/sources/manifest.py</code> and <code>dispatch.py</code>
+  (classification and fetching), <code>adapters/sources/design_assets.py</code> (Plate 3),
+  <code>adapters/sources/bitbucket.py</code> and <code>src/tt-bitbucket-mcp/bitbucket_mcp_server.py</code>
+  (Plate 2), <code>mcp/tools_*.py</code> (Plate 4), <code>.importlinter</code> (Plate 5),
+  <code>.vscode/mcp.json</code> and <code>platform/config.py</code>.</p>
+  <p><strong>Companion documents.</strong> <code>README.md</code> for setup and sample prompts;
+  <code>presentation.html</code> for a fully worked example tracing one request through every one of
+  these connections; <code>docs/restore-procedure.md</code> for the recovery rehearsal.</p>
+  <p class="no-print"><strong>Exporting.</strong> Print to PDF for slides or a Confluence attachment —
+  the print stylesheet drops to a single column, forces a light palette and keeps each plate on one
+  page. To paste into a Confluence page, select the whole sheet and paste; the diagrams travel as
+  inline SVG and the tables as real tables.</p>
+</footer>
+
+</div>
