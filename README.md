@@ -145,8 +145,15 @@ ingest -> analyse -> requirements -> coverage -> cases -> automation -> handover
 ```
 
 Each mode names the tools visible in it, works on one feature at a time, and stops
-after one stage — it will not choose the next one for you. Every prompt below
-names a feature (`checkout`, standing in for whatever you're actually working on).
+after one stage — it will not choose the next one for you.
+
+> **What "checkout" means below.** It is not a keyword, a built-in feature, or
+> anything TAAS ships with — every prompt below is written against a placeholder
+> feature called `checkout` (a generic e-commerce checkout flow) purely as a
+> stand-in example. Nothing named `checkout` exists in your project until you
+> ingest and analyse something and name it that yourself. **Replace it with the
+> name of whatever feature you're actually working on** — if you're testing a
+> login flow, say "Ingest the resources for login," not "...for checkout."
 
 **Ingest** — resolve and pull in whatever `resources.md` declares
 - "Ingest the resources for checkout."
