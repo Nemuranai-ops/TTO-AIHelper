@@ -14,7 +14,7 @@
       "command": "python",
       "args": ["C:\\tools\\tt-atlassian-mcp\\atlassian_mcp_server.py"],
       "env": {
-        "ATLASSIAN_BASE_URL": "https://fbdms.atlassian.net",
+        "ATLASSIAN_BASE_URL": "https://abc.atlassian.net",
         "ATLASSIAN_EMAIL": "your.name@example.com",
         "ATLASSIAN_API_TOKEN": "${input:atlassian-token}"
       }
