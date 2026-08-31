@@ -204,11 +204,17 @@ class TestAtlassianAdapter:
 
 class TestBitbucketAdapter:
     def test_repos_carry_the_head_commit_for_delta_detection(self):
+        """bitbucket_repos' real per-entry fields (repo_summary): "repo" (the clone's
+        folder name, not "repo_slug"), "head_sha" (not "head_commit"), "project" and
+        "web_url" (parsed from the remote, not "project_key"/"browse_url")."""
         session = FakeSession({"bitbucket_repos": {"repos": [
-            {"repo_slug": "orders", "project_key": "PAY", "branch": "main",
-             "head_commit": "a" * 40}]}})
+            {"repo": "orders", "project": "PAY", "branch": "main",
+             "head_sha": "a" * 40, "web_url": "https://bitbucket.org/pay/orders"}]}})
         repos = BitbucketSourceAdapter(session).repos().value
+        assert repos[0].slug == "orders"
         assert repos[0].head_commit == "a" * 40
+        assert repos[0].project_key == "PAY"
+        assert repos[0].browse_url == "https://bitbucket.org/pay/orders"
 
     def test_endpoints_and_spec_are_returned_together(self):
         session = FakeSession({"bitbucket_endpoints": {
@@ -257,11 +263,14 @@ class TestBitbucketAdapter:
         commits = BitbucketSourceAdapter(session).log("orders").value
         assert len(commits) == 1
 
-    def test_changes_surfaces_key_coverage(self):
+    def test_changes_returns_status_file_pairs(self):
+        """bitbucket_changes' real field is "changes", each entry {"status", "file"} -
+        never "files" (bitbucket_mcp_server.py, bitbucket_changes)."""
         session = FakeSession({"bitbucket_changes": {
-            "files": ["a.py"], "jira_keys": ["PAY-1"], "key_coverage_percent": 87}})
+            "changes": [{"status": "M", "file": "a.py"}, {"status": "D", "file": "b.py"}],
+            "jira_keys": ["PAY-1"], "jira_key_coverage_pct": 87}})
         result = BitbucketSourceAdapter(session).changes("orders", "v1", "v2").value
-        assert result["key_coverage_percent"] == 87
+        assert result == [("M", "a.py"), ("D", "b.py")]
 
 
 # --------------------------------------------------------------------------

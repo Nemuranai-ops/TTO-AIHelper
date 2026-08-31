@@ -154,8 +154,8 @@ class TestConfluenceSpaceFetcher:
 class TestBitbucketRepoFetcher:
     def test_a_readable_repo_is_confirmed_and_recorded(self):
         session = FakeSession({"bitbucket_repos": {"repos": [
-            {"repo_slug": "checkout-service", "project_key": "PAY", "branch": "main",
-             "head_commit": "a" * 40, "browse_url": "https://bitbucket.org/x/checkout-service"},
+            {"repo": "checkout-service", "project": "PAY", "branch": "main",
+             "head_sha": "a" * 40, "web_url": "https://bitbucket.org/x/checkout-service"},
         ]}})
         fetcher = BitbucketRepoFetcher(BitbucketSourceAdapter(session))
         result = fetcher.fetch(resource(
@@ -179,8 +179,8 @@ class TestBitbucketRepoFetcher:
 
     def test_the_project_repos_url_form_also_extracts_correctly(self):
         session = FakeSession({"bitbucket_repos": {"repos": [
-            {"repo_slug": "checkout-service", "project_key": "PAY", "branch": "main",
-             "head_commit": "b" * 40},
+            {"repo": "checkout-service", "project": "PAY", "branch": "main",
+             "head_sha": "b" * 40},
         ]}})
         fetcher = BitbucketRepoFetcher(BitbucketSourceAdapter(session))
         result = fetcher.fetch(resource(

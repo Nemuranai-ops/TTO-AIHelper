@@ -18,7 +18,7 @@ from typing import Any, Sequence
 from tto_testgen.domain.impact import ChangedRef
 from tto_testgen.platform.logging import Logger
 from tto_testgen.platform.resilience import isolate
-from tto_testgen.platform.result import Result, ok
+from tto_testgen.platform.result import Err, ErrorCode, Result, err, ok
 
 
 @dataclass(slots=True)
@@ -90,26 +90,52 @@ class ChangeDetector:
         return result
 
     def _detect_bitbucket(self, baseline: DeltaBaseline, result: DetectionResult) -> None:
-        """One repository per isolated item, so one outage does not lose the rest."""
-        if self._bitbucket is None or not self._repo_slugs:
+        """One repository per isolated item, so one outage does not lose the rest.
+
+        `BitbucketSourceAdapter` is Result-based (L6's call() convention), not the
+        raw/exception-shaped access this method used to assume - there is no `.head()`
+        method, and a `SourceRecord` has no `.identifier` (it is `.source_identifier`).
+        The head commit for each repo comes from `repos()`, the same call U2 uses to
+        discover what exists; `repo_slugs` is honoured when the operator has narrowed
+        it explicitly, and otherwise every repository `repos()` reports is checked -
+        consistent with this project's zero-required-configuration default elsewhere.
+        """
+        if self._bitbucket is None:
+            return
+
+        repos_result = self._bitbucket.repos()
+        if isinstance(repos_result, Err):
+            # One failure, not one per configured slug: without a repo list, no
+            # individual repo's outage can be distinguished from another.
+            result.unavailable_sources.append(("bitbucket", repos_result.message))
+            self._logger.warning("bitbucket repos unreachable", error=repos_result.message)
+            return
+
+        heads = {r.slug: r.head_commit for r in repos_result.value}
+        slugs = tuple(self._repo_slugs) or tuple(heads)
+        if not slugs:
             return
 
         def for_repo(slug: str) -> Result[tuple[str, str, list[ChangedRef]]]:
-            head = self._bitbucket.head(slug)
+            head = heads.get(slug)
+            if head is None:
+                return err(
+                    ErrorCode.FAILED_INTERNAL,
+                    f"{slug}: not among the repositories bitbucket_repos reported",
+                )
             base = baseline.head_commits.get(slug)
             found: list[ChangedRef] = []
             if base and base != head:
-                for record in self._bitbucket.changes(slug, base, head):
+                changes = self._bitbucket.changes(slug, base, head)
+                if isinstance(changes, Err):
+                    return changes
+                for status, path in changes.value:
                     found.append(
-                        ChangedRef(
-                            ref=record.identifier,
-                            source="bitbucket",
-                            kind=str(getattr(record, "kind", "modified")),
-                        )
+                        ChangedRef(ref=path, source="bitbucket", kind=_kind_for_status(status))
                     )
             return ok((slug, head, found))
 
-        outcome = isolate(self._repo_slugs, for_repo, self._logger)
+        outcome = isolate(slugs, for_repo, self._logger)
         for _, value in outcome.succeeded:
             slug, head, found = value
             result.changes += found
@@ -147,3 +173,18 @@ class ChangeDetector:
             result.unavailable_sources.append(
                 ("jira", getattr(failure, "message", "unreachable"))
             )
+
+
+def _kind_for_status(status: str) -> str:
+    """Maps `git diff --name-status` codes to the three kinds `map_impact` reads.
+
+    A(dded) and D(eleted) are unambiguous; everything else - M(odified), R(enamed),
+    C(opied), T(ypechange) - still leaves the path present and changed, so all of
+    them read as "modified".
+    """
+    code = (status or "").strip()[:1].upper()
+    if code == "D":
+        return "removed"
+    if code == "A":
+        return "added"
+    return "modified"

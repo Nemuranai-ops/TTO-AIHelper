@@ -34,14 +34,22 @@ class BitbucketSourceAdapter:
     ceiling: int = DEFAULT_CEILING
 
     def repos(self) -> Result[list[RepoInfo]]:
+        """tt-bitbucket-mcp's own response shape (bitbucket_mcp_server.py, repo_summary):
+        "repo" is the clone's folder name - what resolve_repo() accepts as `repo` in
+        every other tool call, so it is what `slug` must be, never "repo_slug". The
+        head commit is "head_sha", never "head_commit". "project" and "web_url" come
+        from parsing the remote URL (bitbucket_coordinates) - "slug" also exists there,
+        but names Bitbucket's own remote-side slug, a different thing from the local
+        folder name every other tool call needs.
+        """
         result = self.session.call(SERVER, "bitbucket_repos", {})
         if isinstance(result, Err):
             return result
         return ok([
             RepoInfo(
-                slug=r.get("repo_slug", ""), project_key=r.get("project_key", ""),
-                branch=r.get("branch", ""), head_commit=r.get("head_commit", ""),
-                browse_url=r.get("browse_url", ""),
+                slug=r.get("repo", ""), project_key=r.get("project", ""),
+                branch=r.get("branch", ""), head_commit=r.get("head_sha", ""),
+                browse_url=r.get("web_url", ""),
             )
             for r in result.value.get("repos", [])
         ])
@@ -135,19 +143,24 @@ class BitbucketSourceAdapter:
             ))
         return ok(commits)
 
-    def changes(self, repo_slug: str, base: str, head: str) -> Result[dict[str, Any]]:
+    def changes(self, repo_slug: str, base: str, head: str) -> Result[list[tuple[str, str]]]:
+        """(status, file) pairs changed between base and head, for D17's delta detection.
+
+        tt-bitbucket-mcp's own response shape (bitbucket_mcp_server.py, bitbucket_changes):
+        the per-file list is "changes", each entry {"status", "file"} from `git diff
+        --name-status`, never "files". "commits" here is a COUNT of commits in the range,
+        not the commits themselves - bitbucket_log is the source for actual commit
+        records, and the field name is shared between the two tools for two different
+        meanings. "jira_key_coverage_pct", not "key_coverage_percent".
+        """
         result = self.session.call(
             SERVER, "bitbucket_changes", {"repo": repo_slug, "base": base, "head": head}
         )
         if isinstance(result, Err):
             return result
-        payload = result.value
-        return ok({
-            "files": payload.get("files", []),
-            "commits": payload.get("commits", []),
-            "jira_keys": payload.get("jira_keys", []),
-            "key_coverage_percent": payload.get("key_coverage_percent"),
-        })
+        return ok([
+            (c.get("status", ""), c.get("file", "")) for c in result.value.get("changes", [])
+        ])
 
 
 def _infer_auth(context: str) -> AuthRequirement:

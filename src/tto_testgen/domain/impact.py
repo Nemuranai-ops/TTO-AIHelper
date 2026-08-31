@@ -20,7 +20,7 @@ LARGE_IMPACT_THRESHOLD = 0.20
 class ChangedRef:
     ref: str
     source: str  # "bitbucket" | "jira"
-    kind: str = "modified"  # modified | deleted | added
+    kind: str = "modified"  # modified | removed | added
 
 
 @dataclass(frozen=True, slots=True)

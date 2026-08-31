@@ -70,6 +70,37 @@ class _RequirementServiceWithLiveBitbucket:
             return service.upsert_requirements(feature_slug, payload, run_id)
 
 
+class _ChangeDetectorWithLiveBitbucket:
+    """Same interface ChangeDetector already exposes - detect(baseline) - but opens a
+    fresh Bitbucket MCP session only for the call itself, per L6's one-call-per-session
+    rule. Same reasoning as _RequirementServiceWithLiveBitbucket above: one delta_detect
+    call may check several repositories, and all of that is one logical operation, so
+    one session covers it rather than one per repository.
+
+    Jira stays None here - U8-NFR-... aside, wiring it needs AtlassianSourceAdapter to
+    capture an issue's updated timestamp, which it does not currently do (its
+    SourceRecord.metadata has no updated_at field at all). That is a separate,
+    unfixed gap: _detect_jira no-ops on a None jira source exactly as it always has.
+    """
+
+    def __init__(self, config: Any, logger: Any, *, max_changes: int) -> None:
+        self._config = config
+        self._logger = logger
+        self._max_changes = max_changes
+
+    def detect(self, baseline: Any) -> Any:
+        from tto_testgen.adapters.change_detector import ChangeDetector
+        from tto_testgen.adapters.mcp_client import McpClientSession, servers_from_config
+        from tto_testgen.adapters.sources.bitbucket import BitbucketSourceAdapter
+
+        with McpClientSession(servers_from_config(self._config), self._logger) as session:
+            detector = ChangeDetector(
+                BitbucketSourceAdapter(session), None, self._logger,
+                max_changes=self._max_changes,
+            )
+            return detector.detect(baseline)
+
+
 @dataclass(slots=True)
 class Application:
     config: config_module.Config
@@ -251,11 +282,10 @@ def build(
     )
     register_u6_tools(registry, handover)
 
-    # U8. Reporting needs no external source; the change detector's adapters are
-    # constructed per delta run, like U2's, so it is wired with None here and the
-    # detector is supplied when a run starts.
+    # U8. Reporting needs no external source. The change detector's Bitbucket session
+    # is opened per delta run, like U2's and U3's - _ChangeDetectorWithLiveBitbucket
+    # builds a fresh ChangeDetector(bitbucket, ...) inside detect(), not here.
     from tto_testgen.adapters.report_renderer import ReportRenderer
-    from tto_testgen.adapters.change_detector import ChangeDetector
     from tto_testgen.mcp.tools_u8 import register_u8_tools
 
     reporting = ReportingService(
@@ -266,7 +296,7 @@ def build(
     delta = DeltaService(
         lambda: unit_of_work(connection),
         run_state,
-        ChangeDetector(None, None, logger, max_changes=config.max_changes),
+        _ChangeDetectorWithLiveBitbucket(config, logger, max_changes=config.max_changes),
         logger,
     )
     register_u8_tools(registry, reporting, delta)
