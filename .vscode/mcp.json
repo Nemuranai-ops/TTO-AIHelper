@@ -12,13 +12,18 @@
     "tto-testgen": {
       "$comment": [
         "Local toolchain. stdio only; no network listener is opened.",
-        "config.load() reads only the process environment - it does not parse .env",
-        "itself - so --env-file is what makes `cp .env.example .env` actually take",
-        "effect rather than being silently ignored."
+        "No --env-file flag here deliberately: `uv run --env-file .env` fails hard",
+        "if .env does not exist yet, and .env is gitignored - a fresh clone has none",
+        "until someone runs `cp .env.example .env`. Nothing is required by default",
+        "(see config.py's REQUIRED), so this starts with zero setup. If you create a",
+        "`.env` to override a default, add --env-file .env to your own local copy of",
+        "this file, or export the variables in your shell before opening VS Code -",
+        "config.load() reads only the process environment; it never parses .env",
+        "itself."
       ],
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--env-file", ".env", "tto-testgen-mcp"]
+      "args": ["run", "tto-testgen-mcp"]
     },
     "tto-atlassian": {
       "$comment": [

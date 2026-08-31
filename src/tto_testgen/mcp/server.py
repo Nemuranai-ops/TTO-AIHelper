@@ -179,28 +179,56 @@ class McpServer:
         return _result_payload(result, self._workspace_root)
 
     def serve_stdio(self) -> None:  # pragma: no cover - transport wiring
-        """Run over stdio. No socket is bound anywhere in this class."""
-        import sys
+        """Run over stdio, speaking the real Model Context Protocol.
 
-        for line in sys.stdin:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                request = json.loads(line)
-            except json.JSONDecodeError:
-                sys.stdout.write(
-                    json.dumps({"ok": False, "code": ErrorCode.FAILED_INTERNAL.value,
-                                "message": "malformed request"}) + "\n"
+        Bridges to `mcp`'s own async server loop with `anyio.run` - list_tools() and
+        call() above stay plain synchronous methods, tested and called directly by
+        every other test in this suite; only this function needs to know an event
+        loop exists at all. Every actual request is one call, sequential (a single
+        agent, one stdio pipe), so a blocking call inside the handler (SQLite, a
+        subprocess wait for an MCP client call) costs nothing here that a real
+        concurrent server would pay for.
+        """
+        import anyio
+
+        anyio.run(self._serve_mcp)
+
+    async def _serve_mcp(self) -> None:  # pragma: no cover - transport wiring
+        import mcp.types as types
+        from mcp.server.lowlevel import Server
+        from mcp.server.stdio import stdio_server
+
+        app: Server = Server("tto-testgen", version="0.1.0")
+
+        @app.list_tools()
+        async def _list_tools() -> list[types.Tool]:
+            return [
+                types.Tool(
+                    name=spec["name"],
+                    description=f"[{spec['tier']}] {spec['description']}",
+                    inputSchema=spec["inputSchema"],
                 )
-                sys.stdout.flush()
-                continue
-            if request.get("method") == "tools/list":
-                payload: dict[str, Any] = {"ok": True, "value": self.list_tools()}
-            else:
-                payload = self.call(request.get("name", ""), request.get("arguments"))
-            sys.stdout.write(json.dumps(payload, default=str) + "\n")
-            sys.stdout.flush()
+                for spec in self.list_tools()
+            ]
+
+        @app.call_tool(validate_input=False)
+        async def _call_tool(name: str, arguments: dict[str, Any]) -> "types.CallToolResult":
+            # validate_input=False: McpServer.call() already validates against the
+            # same pydantic schema and returns a structured, agent-branchable error
+            # on failure (NFR-SEC-03) - a second, jsonschema-based validation layer
+            # here would only risk rejecting something pydantic's defaults accept.
+            payload = self.call(name, arguments or {})
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(payload, default=str))],
+                # The agent branches on payload["code"], not message text (see
+                # _result_payload's docstring) - structuredContent carries that
+                # contract unchanged, rather than reshaping it into something new.
+                structuredContent=payload,
+                isError=not payload.get("ok", False),
+            )
+
+        async with stdio_server() as (read_stream, write_stream):
+            await app.run(read_stream, write_stream, app.create_initialization_options())
 
 
 def _summarise(exc: ValidationError) -> str:

@@ -37,14 +37,25 @@ identical dependency set.
 
 ## Configure
 
+Nothing is required. Open this repo in VS Code and `tto-testgen` starts with zero
+setup — `.vscode/mcp.json` runs it with no `.env` file needed at all. TAAS drives two
+other MCP servers itself for bulk reads (fetching hundreds of Jira issues through the
+model's context would be slow and expensive) — they're vendored inside this repo at
+`src/tt-atlassian-mcp` and `src/tt-bitbucket-mcp`, and every default already points at
+them.
+
+`.env.example` documents every variable and its default; copy it only if you want to
+override one:
+
 ```bash
-cp .env.example .env
+cp .env.example .env   # optional - only to change a default
 ```
 
-Nothing is required by default. TAAS drives two other MCP servers itself for bulk
-reads (fetching hundreds of Jira issues through the model's context would be slow
-and expensive) — they're vendored inside this repo at `src/tt-atlassian-mcp` and
-`src/tt-bitbucket-mcp`, and `.env.example` already points at them.
+A copied `.env` is not read automatically by VS Code's launch of `tto-testgen` (it's
+gitignored, and `uv run --env-file` fails if the file doesn't exist, so the default
+command doesn't pass that flag) — either export the variables in your shell before
+opening VS Code, or add `--env-file .env` to your own local copy of `.vscode/mcp.json`
+once you've created one.
 
 Neither takes a credential from TAAS:
 
