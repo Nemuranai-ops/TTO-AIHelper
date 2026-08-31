@@ -88,12 +88,52 @@ metadata alongside the results they produced.
 
 ## Run
 
+`.vscode/mcp.json` is committed and registers all four servers this project uses —
+opening the folder in VS Code is the only setup step; nothing needs typing into a
+settings file by hand:
+
+```json
+{
+  "servers": {
+    "tto-testgen": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "tto-testgen-mcp"]
+    },
+    "tto-atlassian": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${workspaceFolder}/src/tt-atlassian-mcp/atlassian_mcp_server.py"]
+    },
+    "tto-bitbucket": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${workspaceFolder}/src/tt-bitbucket-mcp/bitbucket_mcp_server.py"]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
+```
+
+VS Code lists each of these under the Extensions view, **MCP Servers - Installed**.
+Right-click a server there for **Start Server** / **Stop Server** / **Restart
+Server** — the same manual control as any other MCP server registered globally in
+VS Code's own `mcp.json` (`Show Configuration (JSON)` on that same menu opens
+whichever file — workspace or global — actually defines it). Starting
+`tto-testgen`, `tto-atlassian` and `tto-bitbucket` this way, individually, is the
+normal way to run this project; nothing here needs all three left running at once.
+
+To run `tto-testgen` outside VS Code entirely (a terminal, a CI step):
+
 ```bash
 uv run tto-testgen-mcp
 ```
 
-The server communicates over stdio and opens no network listener. Register it in
-`.vscode/mcp.json` alongside TTO-Atlassian-MCP, TTO-Bitbucket-MCP and Playwright MCP.
+The server communicates over stdio and opens no network listener.
 
 ## Verify
 
