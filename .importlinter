@@ -1,0 +1,67 @@
+# NFR-MNT-01 / P-MNT-02.
+# The domain must stay import-free of everything but stdlib and itself. This is the
+# precondition for the property suite: the moment domain imports an adapter, the
+# properties need a database and stop being cheap enough to run on every commit.
+[importlinter]
+root_package = tto_testgen
+include_external_packages = True
+
+[importlinter:contract:domain-is-pure]
+name = Domain imports nothing outside stdlib and domain
+type = forbidden
+source_modules =
+    tto_testgen.domain
+forbidden_modules =
+    tto_testgen.adapters
+    tto_testgen.services
+    tto_testgen.mcp
+    tto_testgen.ports
+    pydantic
+    mcp
+    jinja2
+
+[importlinter:contract:adapters-do-not-import-services]
+name = Adapters do not import services
+type = forbidden
+source_modules =
+    tto_testgen.adapters
+forbidden_modules =
+    tto_testgen.services
+
+[importlinter:contract:services-do-not-import-adapters]
+# Services depend on ports, never on a concrete adapter. composition.py is the
+# only module permitted to know both sides.
+name = Services do not import concrete adapters
+type = forbidden
+source_modules =
+    tto_testgen.services
+forbidden_modules =
+    tto_testgen.adapters.sqlite.repositories
+    tto_testgen.adapters.sqlite.connection
+
+[importlinter:contract:layers]
+name = Hexagonal layering
+type = layers
+layers =
+    tto_testgen.mcp
+    tto_testgen.services
+    tto_testgen.adapters
+    tto_testgen.ports
+    tto_testgen.domain
+    tto_testgen.platform
+
+[importlinter:contract:subprocess-is-isolated]
+# U6-NFR-MNT-01. Starting a process is the most consequential capability this
+# codebase can acquire, so it lives in exactly one module. The first contract here
+# to name a stdlib module, and the asymmetry is deliberate: a future unit reaching
+# for `subprocess` should fail the build rather than quietly gain the capability.
+name = Only the command runner imports subprocess
+type = forbidden
+source_modules =
+    tto_testgen.domain
+    tto_testgen.services
+    tto_testgen.mcp
+    tto_testgen.platform
+    tto_testgen.ports
+forbidden_modules =
+    subprocess

@@ -1,0 +1,25 @@
+# NFR-SEC-12: ingested corporate content must never reach version control.
+.taas/
+generated/
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.hypothesis/
+.benchmarks/
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp

@@ -1,0 +1,49 @@
+{
+  "$comment": [
+    "MCP servers for TAAS. Committed deliberately: every operator needs the same",
+    "registration. No secret appears here, and no per-operator path either -",
+    "tt-atlassian-mcp and tt-bitbucket-mcp are vendored inside this repo under",
+    "src/, so ${workspaceFolder} resolves the same way for everyone who clones it.",
+    "Neither authenticates through TAAS: tt-bitbucket-mcp never contacts Bitbucket",
+    "at all, and tt-atlassian-mcp reads its own .env file next to its script -",
+    "see src/tt-atlassian-mcp/README.md to set that up once."
+  ],
+  "servers": {
+    "tto-testgen": {
+      "$comment": [
+        "Local toolchain. stdio only; no network listener is opened.",
+        "config.load() reads only the process environment - it does not parse .env",
+        "itself - so --env-file is what makes `cp .env.example .env` actually take",
+        "effect rather than being silently ignored."
+      ],
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--env-file", ".env", "tto-testgen-mcp"]
+    },
+    "tto-atlassian": {
+      "$comment": [
+        "READ-ONLY. Jira and Confluence. The source protocols declare no write",
+        "method. This is the agent's own interactive session; the toolchain spawns",
+        "a second, separate instance of the same script for bulk ingestion (U2-01)."
+      ],
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${workspaceFolder}/src/tt-atlassian-mcp/atlassian_mcp_server.py"]
+    },
+    "tto-bitbucket": {
+      "$comment": [
+        "READ-ONLY. Repositories, endpoints, commit history - read from git clones",
+        "already on disk. Never contacts Bitbucket's network API."
+      ],
+      "type": "stdio",
+      "command": "python3",
+      "args": ["${workspaceFolder}/src/tt-bitbucket-mcp/bitbucket_mcp_server.py"]
+    },
+    "playwright": {
+      "$comment": "Live exploration of the application under test. Read-only against the AUT.",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}

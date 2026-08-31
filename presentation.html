@@ -1,0 +1,1194 @@
+<title>TTO Test Analyst Agent System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ── Tokens ─────────────────────────────────────────────────────────────
+   Light palette on bare :root. Dark redefines tokens only, twice, so both
+   the OS preference and an explicit toggle resolve correctly.            */
+:root {
+  --paper:      #F3F4F0;
+  --paper-2:    #EAEBE5;
+  --paper-3:    #E1E3DB;
+  --ink:        #16202B;
+  --slate:      #5C6773;
+  --rule:       #CBCEC6;
+  --rule-soft:  #DCDED6;
+  --annotation: #8C2F1E;
+  --annotation-wash: #8C2F1E14;
+  --verified:   #1F6B4A;
+  --shadow:     0 1px 0 #16202B0F;
+
+  --f-display: "Zilla Slab", "Bitstream Vera Serif", Georgia, serif;
+  --f-body:    "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+  --f-mono:    "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  --measure: 66ch;
+  --rail: 92px;
+  --pad-x: clamp(1.5rem, 5vw, 5.5rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0F151B;
+    --paper-2:    #161E26;
+    --paper-3:    #1D2731;
+    --ink:        #E9EAE4;
+    --slate:      #8D99A5;
+    --rule:       #28323C;
+    --rule-soft:  #1E2831;
+    --annotation: #E07A5F;
+    --annotation-wash: #E07A5F1F;
+    --verified:   #4FB489;
+    --shadow:     0 1px 0 #00000040;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0F151B;
+  --paper-2:    #161E26;
+  --paper-3:    #1D2731;
+  --ink:        #E9EAE4;
+  --slate:      #8D99A5;
+  --rule:       #28323C;
+  --rule-soft:  #1E2831;
+  --annotation: #E07A5F;
+  --annotation-wash: #E07A5F1F;
+  --verified:   #4FB489;
+  --shadow:     0 1px 0 #00000040;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: clamp(15px, 1.05vw, 17px);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ── Deck shell ─────────────────────────────────────────────────────── */
+.deck { position: relative; height: 100dvh; width: 100%; }
+
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: clamp(2rem, 5vh, 4rem) var(--pad-x) clamp(3.5rem, 8vh, 5rem) calc(var(--rail) + var(--pad-x) * 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1rem, 2.2vh, 1.9rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity .38s ease, transform .38s ease, visibility 0s linear .38s;
+}
+.slide.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity .42s ease, transform .42s cubic-bezier(.2,.7,.3,1), visibility 0s;
+}
+.slide.is-active > * { animation: rise .5s cubic-bezier(.2,.7,.3,1) backwards; }
+.slide.is-active > *:nth-child(2) { animation-delay: .05s; }
+.slide.is-active > *:nth-child(3) { animation-delay: .10s; }
+.slide.is-active > *:nth-child(4) { animation-delay: .15s; }
+.slide.is-active > *:nth-child(5) { animation-delay: .20s; }
+@keyframes rise { from { opacity: 0; transform: translateY(9px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide, .slide.is-active > * { transition-duration: .01ms; animation: none; }
+}
+
+/* ── Left rail: stage number + hairline scale ───────────────────────── */
+.rail {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--rail);
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(1.5rem, 4vh, 2.5rem) 0 1.2rem;
+  gap: 1.1rem;
+  background: var(--paper);
+  z-index: 40;
+}
+.rail-mark {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--slate);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+.rail-num {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--annotation);
+}
+.scale { flex: 1; width: 1px; background: var(--rule-soft); position: relative; }
+.scale-fill {
+  position: absolute; top: 0; left: -1px; width: 3px;
+  background: var(--annotation);
+  transition: height .38s cubic-bezier(.2,.7,.3,1);
+}
+.rail-total {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: .72rem;
+  color: var(--slate);
+}
+
+/* ── Typography ─────────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: .7rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--annotation);
+  margin: 0;
+}
+h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 5.6vw, 4.6rem);
+  line-height: 1.02;
+  letter-spacing: -.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(1.65rem, 3.4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+  margin: 0 0 .35rem;
+  letter-spacing: -.005em;
+}
+p { margin: 0; max-width: var(--measure); }
+.lede { font-size: clamp(1.05rem, 1.7vw, 1.35rem); line-height: 1.45; color: var(--ink); }
+.sub  { color: var(--slate); }
+em { font-style: italic; }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; font-variant-numeric: tabular-nums; }
+code { background: var(--paper-2); padding: .1em .34em; border-radius: 2px; }
+.ann { color: var(--annotation); }
+.ok  { color: var(--verified); }
+
+/* Marginal annotation — the deck's one flourish, used like a reviewer's pen */
+.margin-note {
+  font-family: var(--f-mono);
+  font-size: .72rem;
+  line-height: 1.5;
+  color: var(--annotation);
+  border-left: 2px solid var(--annotation);
+  padding-left: .7rem;
+  max-width: 34ch;
+}
+
+/* ── Rules & grids ──────────────────────────────────────────────────── */
+.hr { height: 1px; background: var(--rule); border: 0; margin: 0; }
+.cols { display: grid; gap: clamp(1.1rem, 2.4vw, 2.4rem); align-items: start; }
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.cols-bias { grid-template-columns: 1.15fr .85fr; }
+@media (max-width: 900px) {
+  .cols-2, .cols-3, .cols-bias { grid-template-columns: 1fr; }
+}
+
+.stack { display: flex; flex-direction: column; gap: .9rem; }
+
+/* ── Figures (big numbers) ──────────────────────────────────────────── */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border-top: 1px solid var(--rule); }
+.fig { padding: .95rem 1.1rem .95rem 0; border-right: 1px solid var(--rule-soft); }
+.fig:last-child { border-right: 0; }
+.fig-n {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.5rem, 2.9vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1;
+  display: block;
+}
+.fig-l {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-top: .45rem;
+  display: block;
+}
+
+/* ── Ledger table ───────────────────────────────────────────────────── */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: .5rem .9rem .5rem 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+thead th {
+  font-family: var(--f-mono);
+  font-size: .66rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--slate);
+  border-bottom: 1px solid var(--rule);
+  font-weight: 500;
+}
+td.num, th.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; padding-right: 1.4rem; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* ── Cards ──────────────────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  padding: 1rem 1.15rem;
+}
+.card-flat { border: 0; border-top: 2px solid var(--ink); background: none; padding: .85rem 0 0; }
+.card-ann { border-top-color: var(--annotation); }
+
+/* ── Layer diagram ──────────────────────────────────────────────────── */
+.layers { display: flex; flex-direction: column; gap: 3px; }
+.layer {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: .6rem .95rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.layer-core { background: var(--annotation-wash); border-color: var(--annotation); }
+.layer-name { font-family: var(--f-mono); font-size: .74rem; letter-spacing: .09em; text-transform: uppercase; color: var(--slate); }
+.layer-core .layer-name { color: var(--annotation); }
+.layer-body { font-size: .89rem; }
+.layer-inset { margin-left: clamp(0px, 3vw, 34px); }
+.dep-arrow {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--slate);
+  display: flex; align-items: center; gap: .6rem;
+  padding: .15rem 0;
+}
+.dep-arrow::before, .dep-arrow::after { content: ""; height: 1px; background: var(--rule); flex: 1; }
+
+
+
+/* ── Request flow ───────────────────────────────────────────────────── */
+.cast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+@media (max-width: 760px) { .cast { grid-template-columns: repeat(2, 1fr); } }
+.cast-item {
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  padding: .42rem .6rem .5rem;
+  display: flex; flex-direction: column; gap: .12rem;
+}
+.cast-item-core { border-color: var(--annotation); border-width: 2px; background: var(--annotation-wash); }
+.cast-n { font-family: var(--f-mono); font-size: .72rem; font-weight: 600; }
+.cast-item-core .cast-n { color: var(--annotation); }
+.cast-r {
+  font-family: var(--f-mono);
+  font-size: .56rem; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--verified);
+}
+.cast-item-core .cast-r { color: var(--annotation); }
+.cast-d { font-size: .72rem; color: var(--slate); line-height: 1.35; }
+.cast-v {
+  font-family: var(--f-mono);
+  font-size: .56rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--verified);
+}
+.cast-v-ext { color: var(--slate); }
+
+.flow { display: flex; flex-direction: column; gap: 0; }
+.step {
+  display: grid;
+  grid-template-columns: 2.1rem 1fr;
+  gap: .75rem;
+  padding: .42rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.step:last-child { border-bottom: 0; }
+.step-n {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: .7rem; font-weight: 600;
+  color: var(--annotation);
+  padding-top: .12rem;
+}
+.step-body { display: flex; flex-direction: column; gap: .16rem; min-width: 0; }
+.wire { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; font-size: .82rem; }
+.arrow {
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  letter-spacing: -.06em;
+  flex: none;
+  color: var(--slate);
+}
+.arrow-write { color: var(--annotation); font-weight: 600; }
+.arrow-back  { color: var(--verified); }
+.who {
+  font-family: var(--f-mono);
+  font-size: .74rem;
+  font-weight: 600;
+  flex: none;
+}
+.who-mcp  { color: var(--ink); }
+.who-core { color: var(--annotation); }
+.call { font-family: var(--f-mono); font-size: .74rem; color: var(--slate); }
+.ret  { color: var(--slate); font-size: .8rem; }
+.ret .v { color: var(--verified); font-family: var(--f-mono); font-size: .95em; }
+.step-think {
+  background: var(--annotation-wash);
+  border-left: 2px solid var(--annotation);
+  padding: .42rem .7rem;
+  margin: .25rem 0;
+  border-bottom: 0;
+}
+.step-think .step-n { padding-top: 0; }
+.think-l {
+  font-family: var(--f-mono);
+  font-size: .6rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--annotation);
+}
+
+/* ── Tool-tier pill ─────────────────────────────────────────────────── */
+.node-tag {
+  font-family: var(--f-mono);
+  font-size: .58rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--slate);
+  border: 1px solid var(--rule);
+  padding: .04rem .3rem;
+  align-self: flex-start;
+}
+.node-tag-rw { color: var(--annotation); border-color: var(--annotation); }
+
+/* ── Pipeline ───────────────────────────────────────────────────────── */
+.pipe { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+@media (max-width: 900px) { .pipe { grid-template-columns: repeat(2, 1fr); } }
+.stage { border-top: 2px solid var(--ink); padding: .6rem .7rem .8rem 0; }
+.stage-n { font-family: var(--f-mono); font-size: .68rem; color: var(--annotation); font-weight: 600; }
+.stage-t { font-family: var(--f-display); font-weight: 600; font-size: .95rem; margin: .2rem 0 .3rem; }
+.stage-d { font-size: .78rem; color: var(--slate); line-height: 1.4; }
+.gate {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: .6rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--annotation);
+  border: 1px solid var(--annotation);
+  padding: .05rem .3rem;
+  margin-top: .45rem;
+}
+
+/* ── Example chain ──────────────────────────────────────────────────── */
+.chain { display: flex; flex-direction: column; gap: 0; }
+.link { display: grid; grid-template-columns: 148px 1fr; gap: 1.1rem; padding: .85rem 0; border-bottom: 1px solid var(--rule-soft); }
+.link:last-child { border-bottom: 0; }
+@media (max-width: 760px) { .link { grid-template-columns: 1fr; gap: .3rem; } }
+.link-k { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--slate); padding-top: .18rem; }
+.link-v { font-size: .93rem; }
+
+pre {
+  font-family: var(--f-mono);
+  font-size: clamp(.72rem, 1.02vw, .82rem);
+  line-height: 1.62;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--annotation);
+  padding: .85rem 1rem;
+  margin: 0;
+  overflow-x: auto;
+  tab-size: 2;
+}
+pre .c { color: var(--slate); }
+pre .k { color: var(--annotation); }
+
+/* ── Lists ──────────────────────────────────────────────────────────── */
+ul.plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+ul.plain li { padding-left: 1.15rem; position: relative; font-size: .93rem; max-width: var(--measure); }
+ul.plain li::before {
+  content: "—";
+  position: absolute; left: 0;
+  color: var(--annotation);
+  font-family: var(--f-mono);
+}
+
+/* ── Controls ───────────────────────────────────────────────────────── */
+.controls {
+  position: fixed;
+  right: var(--pad-x); bottom: 1.1rem;
+  display: flex; align-items: center; gap: .55rem;
+  z-index: 50;
+}
+button.nav {
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: .34rem .68rem;
+  cursor: pointer;
+  line-height: 1.3;
+}
+button.nav:hover { border-color: var(--annotation); color: var(--annotation); }
+button.nav:focus-visible { outline: 2px solid var(--annotation); outline-offset: 2px; }
+button.nav[disabled] { opacity: .35; cursor: default; }
+button.nav[disabled]:hover { border-color: var(--rule); color: var(--ink); }
+
+.hint {
+  position: fixed;
+  left: calc(var(--rail) + 1rem); bottom: 1.35rem;
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  color: var(--slate);
+  z-index: 50;
+}
+@media (max-width: 760px) { .hint { display: none; } }
+
+/* ── Title slide ────────────────────────────────────────────────────── */
+.title-wrap { display: flex; flex-direction: column; gap: 1.4rem; }
+.title-meta {
+  display: flex; flex-wrap: wrap; gap: 0 2.2rem;
+  font-family: var(--f-mono);
+  font-size: .74rem;
+  color: var(--slate);
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+</style>
+
+<nav class="rail" aria-hidden="true">
+  <span class="rail-num" id="railNum">01</span>
+  <div class="scale"><div class="scale-fill" id="scaleFill"></div></div>
+  <span class="rail-mark">TAAS · 2026</span>
+  <span class="rail-total" id="railTotal">17</span>
+</nav>
+
+<main class="deck" id="deck">
+
+<!-- 01 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Title">
+  <div class="title-wrap">
+    <p class="eyebrow">TTO · Test Engineering</p>
+    <h1>The Test Analyst<br>Agent System</h1>
+    <p class="lede sub" style="max-width:52ch">An agent system that decides <em>what</em> needs testing, designs the
+      cases, and generates the automation — from the requirements, designs and code you already have.</p>
+    <div class="title-meta">
+      <span>Greenfield · no existing suite</span>
+      <span>8 units · 35 tools</span>
+      <span>951 tests passing</span>
+    </div>
+  </div>
+</section>
+
+<!-- 02 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="The problem">
+  <p class="eyebrow">The problem</p>
+  <h2>No test suite, no framework,<br>and roughly six thousand cases to write.</h2>
+  <div class="cols cols-bias">
+    <div class="stack">
+      <p>The inputs are scattered across systems that don't talk to each other: Jira stories, Confluence
+        pages, Figma screens, Bitbucket repositories, Swagger files. A person can hold one feature's worth
+        of that in their head. Nobody can hold a hundred and fifty.</p>
+      <p class="sub">So the first baseline gets built by whoever has capacity, in whatever order seems
+        reasonable, and six months later nobody can answer the only question that matters:
+        <strong>is this coverage actually complete, and how would we know?</strong></p>
+    </div>
+    <div class="stack">
+      <div class="card-flat card-ann">
+        <h3>What "done" has to mean</h3>
+        <ul class="plain">
+          <li>Every case traces to a Jira key</li>
+          <li>Every figure traces to a query</li>
+          <li>Every decision traces to a human who approved it</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="The constraint">
+  <p class="eyebrow">The constraint that shaped everything</p>
+  <h2>There are no LLM API keys.</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <p class="lede">The agent must operate entirely through the models and capabilities the corporate
+        GitHub Copilot environment exposes.</p>
+      <p class="sub">That single line rules out the obvious architecture. TAAS cannot be a service that
+        calls a model in a loop, because there is nothing to call.</p>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3>So it is two things instead</h3>
+        <p style="font-size:.92rem">A <strong>VS Code Copilot workspace</strong> — chat modes, instructions,
+          prompt files, MCP registration — paired with a <strong>deterministic local toolchain</strong> that
+          owns every fact which must stay true across thousands of records.</p>
+      </div>
+      <p class="margin-note">The constraint turned out to be the best thing about the design. A model that
+        can't be trusted to count is never asked to.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 04 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Division of labour">
+  <p class="eyebrow">The organising principle</p>
+  <h2>The model reasons about meaning.<br>Deterministic code guarantees the rest.</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="card-flat">
+        <h3>The model decides</h3>
+        <ul class="plain">
+          <li>What a story actually asks for</li>
+          <li>Which behaviours are worth testing</li>
+          <li>What the steps of a case should be</li>
+          <li>Whether two screens mean the same thing</li>
+          <li>Which locator identifies an element</li>
+        </ul>
+      </div>
+      <p class="sub" style="font-size:.88rem">All judgement. All things a person would do, and would
+        occasionally get wrong.</p>
+    </div>
+    <div class="stack">
+      <div class="card-flat card-ann">
+        <h3>The toolchain guarantees</h3>
+        <ul class="plain">
+          <li>Every case has ordered steps and expected results</li>
+          <li>Every case resolves to an <em>ingested</em> Jira key</li>
+          <li>No duplicate enters the corpus</li>
+          <li>Identifiers are allocated once and never reissued</li>
+          <li>Every figure in every report is a query result</li>
+        </ul>
+      </div>
+      <p class="margin-note">Not "the instructions say so". Schema constraints, database triggers, and
+        import contracts that fail the build.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 05 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="System architecture">
+  <p class="eyebrow">System architecture · one request, traced</p>
+  <h2>&ldquo;Generate the test cases for Checkout.&rdquo;</h2>
+
+  <div class="cast">
+    <div class="cast-item"><span class="cast-n">tto-atlassian</span><span class="cast-r">Read only</span>
+      <span class="cast-v">Vendored, src/</span>
+      <span class="cast-d">Jira &amp; Confluence</span></div>
+    <div class="cast-item"><span class="cast-n">tto-bitbucket</span><span class="cast-r">Read only</span>
+      <span class="cast-v">Vendored, src/</span>
+      <span class="cast-d">Repos, endpoints, commits</span></div>
+    <div class="cast-item"><span class="cast-n">playwright</span><span class="cast-r">Read only</span>
+      <span class="cast-v cast-v-ext">Fetched via npx</span>
+      <span class="cast-d">The live application</span></div>
+    <div class="cast-item cast-item-core"><span class="cast-n">tto-testgen</span><span class="cast-r">Reads &amp; writes</span>
+      <span class="cast-v">This repo</span>
+      <span class="cast-d">The toolchain · 35 tools</span></div>
+  </div>
+
+  <div class="flow">
+    <div class="step">
+      <span class="step-n">01</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9660;</span><span class="who">Operator</span>
+          <span class="call">cases chat mode</span></div>
+        <div class="ret">Types the request. Nothing runs until they do &mdash; the agent never picks its own next unit of work.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">02</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9472;&#9472;&#9654;</span><span class="who who-core">tto-testgen</span>
+          <span class="call">coverage_get(&ldquo;checkout&rdquo;)</span></div>
+        <div class="ret"><span class="arrow arrow-back">&#9664;&#9472;&#9472;</span>
+          <span class="v">12 coverage items · baseline approved · hash unchanged</span>
+          &mdash; the gate is open, so the work may proceed</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">03</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9472;&#9472;&#9654;</span><span class="who who-mcp">tto-atlassian</span>
+          <span class="call">jira_get_issue(&ldquo;PAY-12&rdquo;)</span></div>
+        <div class="ret"><span class="arrow arrow-back">&#9664;&#9472;&#9472;</span>
+          <span class="v">Quantity must be between 1 and 99</span> &mdash; story text, acceptance criteria, comments</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">04</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9472;&#9472;&#9654;</span><span class="who who-mcp">tto-bitbucket</span>
+          <span class="call">bitbucket_endpoints(&ldquo;shop-api&rdquo;)</span></div>
+        <div class="ret"><span class="arrow arrow-back">&#9664;&#9472;&#9472;</span>
+          <span class="v">POST /basket/items · 400 on out-of-range</span> &mdash; a status code the story never mentioned</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">05</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9472;&#9472;&#9654;</span><span class="who who-mcp">playwright</span>
+          <span class="call">browser_snapshot(&ldquo;/basket&rdquo;)</span></div>
+        <div class="ret"><span class="arrow arrow-back">&#9664;&#9472;&#9472;</span>
+          <span class="v">textbox &ldquo;Quantity&rdquo; · button &ldquo;Update basket&rdquo;</span> &mdash; locators confirmed against the running app</div>
+      </div>
+    </div>
+
+    <div class="step step-think">
+      <span class="step-n">06</span>
+      <div class="step-body">
+        <span class="think-l">The model reasons &mdash; no server is called</span>
+        <div class="ret">Four boundary cases: <span class="mono">0</span>, <span class="mono">1</span>,
+          <span class="mono">99</span>, <span class="mono">100</span>. Steps, expected results, synthetic data.
+          <strong>This is the only step nothing deterministic could have done.</strong></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">07</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow arrow-write">&#9552;&#9552;&#9658;</span><span class="who who-core">tto-testgen</span>
+          <span class="call">testcases_upsert(4 cases)</span>
+          <span class="node-tag node-tag-rw" style="align-self:baseline">Write</span></div>
+        <div class="ret">11 checks in order &rarr; classify &rarr; <strong>allocate identifiers last</strong> &rarr; one
+          transaction &rarr; re-emit the feature&rsquo;s views</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">08</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow arrow-back">&#9664;&#9472;&#9472;</span><span class="who who-core">tto-testgen</span>
+          <span class="call">CaseBatchReport</span></div>
+        <div class="ret"><span class="v">4 accepted · 0 rejected · planned 4 / generated 4</span>
+          &mdash; <span class="mono">TC-CHECKOUT-00001</span>&hellip;<span class="mono">00004</span></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-n">09</span>
+      <div class="step-body">
+        <div class="wire"><span class="arrow">&#9650;</span><span class="who">Operator</span>
+          <span class="call">reads generated/testcases/checkout.md</span>
+          <span class="gate" style="margin-top:0">Gate</span></div>
+        <div class="ret">Approves, or sends it back. <strong>Nothing advances without this.</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cols cols-2">
+    <p class="sub" style="font-size:.88rem">Steps 03&ndash;05 are the three read-only servers, and they are where
+      the corpus gets its evidence: a story, an endpoint the story forgot, and a locator that provably matches
+      something. Two of the three ship inside this repository &mdash; clone it, and there is nothing left to
+      configure. <span class="mono">tto-bitbucket</span> goes further still: it reads git clones already on
+      disk and never reaches Bitbucket&rsquo;s network at all.</p>
+    <p class="margin-note">Had the agent invented a Jira key at step 07, the batch would have been refused at
+      the database. It can only cite keys that were actually ingested.</p>
+  </div>
+</section>
+
+<!-- 06 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Internal architecture">
+  <p class="eyebrow">Architecture</p>
+  <h2>Hexagonal, with the domain at the centre<br>and nothing pointing outward.</h2>
+  <div class="layers">
+    <div class="layer">
+      <span class="layer-name">Agent layer</span>
+      <span class="layer-body">7 Copilot chat modes · instructions · prompt files. <span class="sub">No file-write
+        tools — durable state can only go through the toolchain.</span></span>
+    </div>
+    <div class="dep-arrow">depends on</div>
+    <div class="layer layer-inset">
+      <span class="layer-name">MCP boundary</span>
+      <span class="layer-body"><span class="mono">35 tools</span> — 17 read, 18 write. Pydantic validation, typed
+        result codes, remediation text on every rejection.</span>
+    </div>
+    <div class="layer layer-inset">
+      <span class="layer-name">Services</span>
+      <span class="layer-body">S1–S9. Own transaction boundaries and orchestration. <span class="sub">Never call
+        a concrete adapter.</span></span>
+    </div>
+    <div class="layer layer-inset">
+      <span class="layer-name">Ports</span>
+      <span class="layer-body">Protocols only. <span class="sub">The source ports declare no write method — read-only
+        against Jira and Bitbucket is a missing capability, not a rule.</span></span>
+    </div>
+    <div class="layer layer-inset layer-core">
+      <span class="layer-name">Domain</span>
+      <span class="layer-body">D1–D8 + 5 pure modules. Similarity, identity, traceability, coverage,
+        classification, impact, validation, privacy. <strong>Imports nothing but stdlib.</strong></span>
+    </div>
+    <div class="layer layer-inset">
+      <span class="layer-name">Adapters</span>
+      <span class="layer-body">SQLite, MCP clients, Jinja2 emitter, subprocess runner. <span class="sub">Swappable
+        without the domain noticing.</span></span>
+    </div>
+  </div>
+  <p class="margin-note">5 import contracts enforce this at build time. One of them confines
+    <span class="mono">subprocess</span> to a single module — and it was verified by deliberately breaking it.</p>
+</section>
+
+<!-- 07 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="The pipeline">
+  <p class="eyebrow">How it runs</p>
+  <h2>Seven stages. A human gate at every one.</h2>
+  <div class="pipe">
+    <div class="stage"><span class="stage-n">01</span><div class="stage-t">Ingest</div>
+      <div class="stage-d">Jira, Confluence, Bitbucket, Figma, Swagger — from a plain list of links.</div></div>
+    <div class="stage"><span class="stage-n">02</span><div class="stage-t">Analyse</div>
+      <div class="stage-d">Features, business rules, the API and UI models.</div></div>
+    <div class="stage"><span class="stage-n">03</span><div class="stage-t">Requirements</div>
+      <div class="stage-d">Atomic testable requirements, each citing its source.</div></div>
+    <div class="stage"><span class="stage-n">04</span><div class="stage-t">Coverage</div>
+      <div class="stage-d">What to test and how deeply, by ISTQB technique.</div>
+      <span class="gate">Test Lead</span></div>
+    <div class="stage"><span class="stage-n">05</span><div class="stage-t">Cases</div>
+      <div class="stage-d">Structured cases with mandatory steps and synthetic data.</div>
+      <span class="gate">Gate</span></div>
+    <div class="stage"><span class="stage-n">06</span><div class="stage-t">Automation</div>
+      <div class="stage-d">A pure Playwright project, TypeScript, page objects.</div>
+      <span class="gate">Gate</span></div>
+    <div class="stage"><span class="stage-n">07</span><div class="stage-t">Handover</div>
+      <div class="stage-d">Assembled, verified, manifested. You push it.</div>
+      <span class="gate">Gate</span></div>
+  </div>
+  <hr class="hr">
+  <div class="cols cols-2">
+    <p class="sub">The coverage gate is the binding one. Approval attaches to a <strong>content hash</strong>
+      of the model — rebuild it unchanged and the approval survives; change one requirement and it is
+      invalidated, and the system says so before anything downstream runs.</p>
+    <p class="margin-note">Nothing regenerates itself. A delta run re-enters the pipeline at stage 03,
+      through the same gates the baseline passed.</p>
+  </div>
+</section>
+
+<!-- 08 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Example · the story">
+  <p class="eyebrow">Worked example · step 1 of 4</p>
+  <h2>One Jira story goes in.</h2>
+  <div class="cols cols-bias">
+    <div class="stack">
+      <pre><span class="c">PAY-12 · Story</span>
+Basket quantity validation
+
+<span class="k">Description</span>
+  A customer must not be able to order
+  fewer than 1 or more than 99 of any item.
+
+<span class="k">Acceptance criteria</span>
+  · Quantity 0 is rejected with a message
+  · Quantity 100 is rejected
+  · Quantities 1 to 99 are accepted</pre>
+      <p class="sub" style="font-size:.88rem">Ingested read-only. Content-hashed, so a re-run that finds it
+        unchanged skips it entirely.</p>
+    </div>
+    <div class="stack">
+      <div class="card-flat">
+        <h3>What the toolchain records</h3>
+        <div class="chain">
+          <div class="link"><span class="link-k">Artefact</span><span class="link-v mono">jira-issue · PAY-12</span></div>
+          <div class="link"><span class="link-k">Detail level</span><span class="link-v">full <span class="sub">— has criteria and body</span></span></div>
+          <div class="link"><span class="link-k">Known key</span><span class="link-v ok mono">PAY-12 ✓</span></div>
+        </div>
+      </div>
+      <p class="margin-note">That last line matters more than it looks. A case may only cite a key that was
+        actually ingested — an invented one is refused at the database.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 09 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Example · coverage">
+  <p class="eyebrow">Worked example · step 2 of 4</p>
+  <h2>It becomes a requirement, then a coverage plan.</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="card-flat card-ann">
+        <h3>Testable requirement</h3>
+        <div class="chain">
+          <div class="link"><span class="link-k">TR-CHECKOUT-00001</span>
+            <span class="link-v">Quantity must be between 1 and 99 inclusive.</span></div>
+          <div class="link"><span class="link-k">Category</span><span class="link-v">boundary rule</span></div>
+          <div class="link"><span class="link-k">Risk</span><span class="link-v">medium <span class="sub">— revenue path, moderate change rate</span></span></div>
+        </div>
+      </div>
+      <p class="sub" style="font-size:.88rem">A requirement stating two behaviours is rejected with the
+        suggested split. One requirement, one behaviour.</p>
+    </div>
+    <div class="stack">
+      <div class="card-flat">
+        <h3>Coverage model · derived, not guessed</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Technique</th><th class="num">Planned</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">CI-…-00001</td><td>Boundary value</td><td class="num">4</td></tr>
+              <tr><td class="mono">CI-…-00002</td><td>Equivalence</td><td class="num">3</td></tr>
+              <tr><td class="mono">CI-…-00003</td><td>Error handling</td><td class="num">2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="margin-note">Four boundary cases: 0, 1, 99, 100. That figure comes from the technique, not
+        from an opinion — which is why the report can show its derivation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Example · the case">
+  <p class="eyebrow">Worked example · step 3 of 4</p>
+  <h2>The agent writes the case. The toolchain checks it.</h2>
+  <div class="cols cols-bias">
+    <div class="stack">
+      <pre><span class="c">// submitted by the agent — note: no identifier field</span>
+{
+  <span class="k">coverage_item_id</span>: "CI-CHECKOUT-00001",
+  <span class="k">title</span>:  "Reject a quantity of zero",
+  <span class="k">test_type</span>: "boundary",
+  <span class="k">steps</span>: [
+    { ordinal: 1, action: "Open the basket",
+      expected: "The basket page is shown" },
+    { ordinal: 2, action: "Set quantity to 0",
+      expected: "An out-of-range message is shown" } ],
+  <span class="k">test_data</span>: [
+    { field: "quantity", value: "0",
+      equivalence_class: "boundary-low" } ],
+  <span class="k">trace_links</span>: [ { type: "direct-story",
+                    jira_key: "PAY-12" } ]
+}</pre>
+    </div>
+    <div class="stack">
+      <div class="card-flat card-ann">
+        <h3>Eleven checks, in order</h3>
+        <div class="tbl-wrap">
+          <table>
+            <tbody>
+              <tr><td class="mono" style="width:2.6em">A</td><td>Coverage gate open and unchanged</td></tr>
+              <tr><td class="mono">A</td><td>Batch within the 200 cap</td></tr>
+              <tr><td class="mono">B</td><td>Identifier not caller-supplied</td></tr>
+              <tr><td class="mono">B</td><td>Steps present, each with an expected result</td></tr>
+              <tr><td class="mono">B</td><td>Test data carries an equivalence class</td></tr>
+              <tr><td class="mono">B</td><td class="ann">No real personal data in any value</td></tr>
+              <tr><td class="mono">C</td><td>Jira key resolves to an ingested artefact</td></tr>
+              <tr><td class="mono">D</td><td>Not a duplicate of the corpus or the batch</td></tr>
+              <tr><td class="mono">E</td><td>Automatability classified</td></tr>
+              <tr><td class="mono">F</td><td>Identifier allocated <span class="sub">— only now</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="margin-note">All-or-nothing. One bad case rejects the batch, every fault is reported
+        together, and <strong>no identifier is consumed</strong> — so the corrected batch starts at the same
+        number.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Example · automation">
+  <p class="eyebrow">Worked example · step 4 of 4</p>
+  <h2>And out comes a Playwright project you can push.</h2>
+  <div class="cols cols-bias">
+    <div class="stack">
+      <pre><span class="c">// tests/checkout.spec.ts — generated</span>
+test.describe(<span class="k">"CI-CHECKOUT-00001"</span>, () => {
+  test(<span class="k">"TC-CHECKOUT-00001 Reject a quantity of zero"</span>, {
+    tag: [<span class="k">"@checkout"</span>, <span class="k">"@boundary"</span>],
+    annotation: [
+      { type: 'case',     description: "TC-CHECKOUT-00001" },
+      { type: 'jira',     description: "PAY-12" },
+      { type: 'coverage', description: "CI-CHECKOUT-00001" },
+    ],
+  }, async ({ page }) => {
+    <span class="c">// 1. Open the basket → The basket page is shown</span>
+    await expect(basket.heading).toBeVisible();
+    ...
+  });
+});</pre>
+      <p class="sub" style="font-size:.88rem">Pure <span class="mono">@playwright/test</span>. No custom runner,
+        no framework to learn. Page objects, a shared auth fixture, HTML and JUnit reporters, and a pinned
+        version.</p>
+    </div>
+    <div class="stack">
+      <div class="card-flat">
+        <h3>What the templates refuse to emit</h3>
+        <ul class="plain">
+          <li><strong>Fixed waits.</strong> No template fragment produces one — every step yields an action and an assertion</li>
+          <li><strong>XPath.</strong> Absent from the locator ladder, not last on it</li>
+          <li><strong>Literal credentials or environment URLs.</strong> The emission is refused entirely</li>
+        </ul>
+      </div>
+      <p class="margin-note">A red test in Jenkins carries its own provenance. You never have to query the
+        corpus to learn which story a failure belongs to.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Enforcement">
+  <p class="eyebrow">The design idea that repeats</p>
+  <h2>Rules people can forget<br>became capabilities that don't exist.</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>The rule</th><th>How it cannot be violated</th></tr></thead>
+      <tbody>
+        <tr><td>Read-only against Jira and Bitbucket</td><td>The source protocols <strong>declare no write method</strong></td></tr>
+        <tr><td>The agent never picks the next unit of work</td><td>The run-state service has <strong>no <span class="mono">next_unit()</span></strong></td></tr>
+        <tr><td>The system never pushes or configures Jenkins</td><td>The handover service has <strong>no <span class="mono">push</span></strong></td></tr>
+        <tr><td>A delta run never regenerates behind a gate</td><td>The delta service <strong>cannot create a case</strong></td></tr>
+        <tr><td>A case must have steps and a real Jira key</td><td><strong>Database triggers</strong>, not validation alone</td></tr>
+        <tr><td>The agent cannot supply its own identifier</td><td>The payload type <strong>has no id field</strong></td></tr>
+        <tr><td>No unit reimplements a domain algorithm</td><td><strong>Import contracts</strong> fail the build</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="margin-note">Seven places where the honest answer to "what stops this?" is <em>nothing can do
+    it</em> — rather than <em>we wrote it down</em>.</p>
+</section>
+
+<!-- 13 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="What it produces">
+  <p class="eyebrow">Deliverables</p>
+  <h2>What you actually get.</h2>
+  <div class="cols cols-3">
+    <div class="card-flat">
+      <h3>The corpus</h3>
+      <p style="font-size:.9rem">SQLite as the system of record. Every case with steps, synthetic data,
+        equivalence classes, tags and traceability links.</p>
+      <p class="sub" style="font-size:.84rem; margin-top:.5rem">Plus Markdown and YAML views per feature,
+        for review.</p>
+    </div>
+    <div class="card-flat">
+      <h3>The automation</h3>
+      <p style="font-size:.9rem">A complete, runnable Playwright project — config, lockfile, page objects,
+        fixtures, specs, <span class="mono">.env.example</span> and a README.</p>
+      <p class="sub" style="font-size:.84rem; margin-top:.5rem">Structurally verified before it's declared
+        ready.</p>
+    </div>
+    <div class="card-flat">
+      <h3>The evidence</h3>
+      <p style="font-size:.9rem">Coverage, gap, automation and delta reports. A bidirectional traceability
+        matrix in Markdown and CSV.</p>
+      <p class="sub" style="font-size:.84rem; margin-top:.5rem">Every figure carries the query it came
+        from.</p>
+    </div>
+  </div>
+  <hr class="hr">
+  <div class="cols cols-2">
+    <p><strong>Your edits survive.</strong> Every generated file records a hash when it's written. Edit a
+      spec or tune <span class="mono">playwright.config.ts</span>, and the next run reports it as
+      hand-edited and leaves it alone.</p>
+    <p class="margin-note">The generated suite is a starting point, not something you can't touch. That
+      distinction is enforced, not promised.</p>
+  </div>
+</section>
+
+<!-- 14 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Verification">
+  <p class="eyebrow">Verification</p>
+  <h2>What was actually checked.</h2>
+  <div class="figs">
+    <div class="fig"><span class="fig-n">951</span><span class="fig-l">tests passing</span></div>
+    <div class="fig"><span class="fig-n">106</span><span class="fig-l">properties</span></div>
+    <div class="fig"><span class="fig-n">23</span><span class="fig-l">budgets met</span></div>
+    <div class="fig"><span class="fig-n">5 / 5</span><span class="fig-l">import contracts</span></div>
+    <div class="fig"><span class="fig-n ok">0</span><span class="fig-l">vulnerabilities</span></div>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="card-flat">
+        <h3>Performance, measured at 10,000 cases</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Operation</th><th class="num">Budget</th><th class="num">Actual</th></tr></thead>
+            <tbody>
+              <tr><td>Full report set, end to end</td><td class="num sub">30 s</td><td class="num ok">0.23 s</td></tr>
+              <tr><td>200-case batch commit</td><td class="num sub">10 s</td><td class="num ok">0.04 s</td></tr>
+              <tr><td>Duplicate check, crowded bucket</td><td class="num sub">50 ms</td><td class="num ok">3.7 ms</td></tr>
+              <tr><td>Whole Playwright project</td><td class="num sub">60 s</td><td class="num ok">0.07 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="stack">
+      <p>Line coverage is <strong>not</strong> measured, deliberately. The defects that actually got past
+        review in this project were all in fully covered lines.</p>
+      <p class="sub">Assurance comes from the three things a percentage doesn't capture: contracts that stop
+        the architecture drifting, properties that test generated input rather than chosen input, and
+        budgets that are measured rather than assumed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 15 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="What the gates caught">
+  <p class="eyebrow">Evidence the gates work</p>
+  <h2>Six defects no example test would have found.</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Found</th><th>Would have caused</th><th>Caught by</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">İ</span> lowercases to <span class="mono">i</span> + a combining dot</td>
+            <td>A Turkish UI label generating TypeScript that won't compile</td><td class="ann">Property test</td></tr>
+        <tr><td>A bare <span class="mono">\r</span> in a requirement statement</td>
+            <td>Every column in a coverage report silently wrong from that row on</td><td class="ann">Property test</td></tr>
+        <tr><td><span class="mono">with_suffix(".ts")</span> replaces rather than appends</td>
+            <td>Every correct page-object import reported as broken</td><td class="ann">A realistic filename</td></tr>
+        <tr><td>SQLite choosing an unselective index</td>
+            <td>Duplicate detection degrading silently at scale</td><td class="ann">Query-plan assertion</td></tr>
+        <tr><td>A test fake written to match its caller</td>
+            <td>A signature mismatch surviving two stage approvals</td><td class="ann">Reading the port</td></tr>
+        <tr><td>Seven dependency vulnerabilities</td>
+            <td>Five of them in the runtime MCP library</td><td class="ann">The build gate</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="margin-note">The last two are the instructive ones. Neither was found by running tests — one by
+    reading a port, the other by running a scan that hadn't been run since the first unit.</p>
+</section>
+
+<!-- 16 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Boundaries">
+  <p class="eyebrow">Boundaries</p>
+  <h2>What it deliberately doesn't do.</h2>
+  <div class="cols cols-2">
+    <div class="stack">
+      <ul class="plain">
+        <li><strong>It doesn't push to Bitbucket.</strong> You push, and you configure the Jenkins job</li>
+        <li><strong>It doesn't run the tests.</strong> Execution stays in your existing pipeline</li>
+        <li><strong>It doesn't write to Jira or Confluence.</strong> Read-only, structurally</li>
+        <li><strong>It doesn't delete a test case.</strong> Ever — retirement marks and retains</li>
+        <li><strong>It doesn't choose what to work on next.</strong> You do</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3>And one limit worth stating plainly</h3>
+        <p style="font-size:.92rem">The suite proves the toolchain is correct. It cannot prove the agent
+          <em>reasons</em> well — which is exactly what the human gate at every stage is for.</p>
+      </div>
+      <p class="margin-note">The system's claim is narrower than "it writes your tests", and checkable:
+        every case traces to a story, every figure to a query, every decision to a person.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 17 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" data-t="Status">
+  <p class="eyebrow">Status</p>
+  <h2>Built, verified, and ready to run<br>against a real application.</h2>
+  <div class="figs">
+    <div class="fig"><span class="fig-n">8</span><span class="fig-l">units complete</span></div>
+    <div class="fig"><span class="fig-n">81</span><span class="fig-l">source files</span></div>
+    <div class="fig"><span class="fig-n">~15k</span><span class="fig-l">lines of Python</span></div>
+    <div class="fig"><span class="fig-n">127</span><span class="fig-l">design documents</span></div>
+    <div class="fig"><span class="fig-n">52</span><span class="fig-l">design patterns</span></div>
+  </div>
+  <hr class="hr">
+  <div class="cols cols-3">
+    <div class="card-flat">
+      <h3>Next</h3>
+      <p style="font-size:.9rem">Point it at one real feature. Walk all seven gates. Break five things
+        deliberately — the rehearsal script names which.</p>
+    </div>
+    <div class="card-flat">
+      <h3>Open</h3>
+      <p style="font-size:.9rem">Live locator verification through Playwright MCP. Until then, locators are
+        emitted <em>and annotated</em> as unverified.</p>
+    </div>
+    <div class="card-flat card-ann">
+      <h3>Standing</h3>
+      <p style="font-size:.9rem">Full-disk encryption on operator workstations is assumed, not verified —
+        an estate control this system can't check.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="hint" id="hint">← → to navigate</div>
+<div class="controls">
+  <button class="nav" id="prev" type="button" aria-label="Previous slide">←</button>
+  <button class="nav" id="next" type="button" aria-label="Next slide">→</button>
+</div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var railNum = document.getElementById('railNum');
+  var railTotal = document.getElementById('railTotal');
+  var fill = document.getElementById('scaleFill');
+  var prev = document.getElementById('prev');
+  var next = document.getElementById('next');
+  var hint = document.getElementById('hint');
+  var i = 0;
+
+  railTotal.textContent = String(slides.length);
+
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i); });
+    railNum.textContent = pad(i + 1);
+    fill.style.height = ((i + 1) / slides.length * 100) + '%';
+    prev.disabled = i === 0;
+    next.disabled = i === slides.length - 1;
+    if (i > 0 && hint) { hint.style.display = 'none'; }
+    try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {}
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+  });
+
+  prev.addEventListener('click', function () { show(i - 1); });
+  next.addEventListener('click', function () { show(i + 1); });
+
+  var startX = null;
+  document.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (startX === null) { return; }
+    var dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 55) { show(dx < 0 ? i + 1 : i - 1); }
+    startX = null;
+  }, { passive: true });
+
+  var start = parseInt((location.hash || '').replace('#', ''), 10);
+  show(isNaN(start) ? 0 : start - 1);
+}());
+</script>
