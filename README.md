@@ -135,6 +135,71 @@ uv run tto-testgen-mcp
 
 The server communicates over stdio and opens no network listener.
 
+## Sample prompts
+
+Copilot Chat works in one of seven modes (`.github/chatmodes/`), one per pipeline
+stage, selected from the chat mode dropdown:
+
+```
+ingest -> analyse -> requirements -> coverage -> cases -> automation -> handover
+```
+
+Each mode names the tools visible in it, works on one feature at a time, and stops
+after one stage — it will not choose the next one for you. Every prompt below
+names a feature (`checkout`, standing in for whatever you're actually working on).
+
+**Ingest** — resolve and pull in whatever `resources.md` declares
+- "Ingest the resources for checkout."
+- "What's declared in resources.md that hasn't been ingested yet?"
+- "Show me every artefact we've pulled in for checkout so far."
+- "Has anything in Bitbucket or Jira changed since our last baseline? Run delta detection."
+
+**Analyse** — build the application model from what's ingested
+- "Build the application model for checkout from what we've ingested."
+- "Derive the API model for the checkout-service repository."
+- "Store the UI model for the screens we just explored with Playwright."
+- "What features exist in the corpus so far?"
+
+**Requirements** — derive atomic, traceable requirements
+- "Derive the testable requirements for checkout."
+- "Show me the requirements captured for checkout, with their risk bands."
+- "Where does this requirement trace back to — direct link or derived from a commit?"
+- `/analyse-story` — extract features, rules and edge cases from one named Jira story
+
+**Coverage** — plan and approve what gets generated, before anything is generated
+- "Build the coverage baseline for checkout."
+- "Give me the coverage forecast before we generate anything — planned counts by test type."
+- "Approve the coverage baseline for checkout." (Test Lead only — everyone else is told so)
+- "What gaps are open — requirements with no coverage, no derivable Jira key, manual-only cases?"
+- "Reduce depth for checkout — it doesn't warrant full ISTQB coverage."
+
+**Cases** — generate the corpus against the approved baseline
+- "Generate the test case batch for checkout."
+- "Check for near-duplicates before I approve this batch."
+- "How many cases do we have for checkout, by test type?"
+- `/generate-cases` — generate the case batch for one named feature
+- `/review-batch` — summarise a generated batch for operator review, short enough to read in a minute
+
+**Automation** — emit Playwright TypeScript for the automatable cases
+- "Emit Playwright specs for the automatable checkout cases."
+- "Give me the automation report — automated versus manual, and why."
+- `/generate-page-object` — produce one page object for a named screen, locators centralised, no fixed waits
+
+**Handover** — assemble and verify the delivery package
+- "Assemble the handover package for checkout."
+- "Verify the handover project — does it actually build and pass structurally?"
+- "Generate the coverage, gap, automation and delta reports."
+- `/coverage-report` — produce the coverage and gap report for one named feature, with every number's derivation shown
+
+**Staying current, at any stage**
+- "Has anything changed since the last completed run? Run delta detection and tell me what moved."
+- "What's the baseline the next delta run would compare against?"
+
+**Diagnostics — not scoped to any one mode**
+- "What's the status of the current run?"
+- "Run a health check."
+- `/resume-run` — report what's interrupted, what's complete and approved, and corpus totals; recommends nothing, since interrupted work is transactional and lost nothing
+
 ## Verify
 
 ```bash
